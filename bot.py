@@ -55,39 +55,41 @@ async def main():
 
     try:
         client = MEXCClient()
+
+        # if args.action == 'balance':
+        #     await client.get_balance()
+        #     return
+
+        if args.action in ['long', 'short']:
+            if not args.symbol or not args.amount:
+                print("The --symbol and --amount arguments are required for trading.")
+                return
+
+            is_valid, error = validate_symbol(args.symbol)
+            if not is_valid:
+                print(error)
+                return
+
+            amount_int = int(args.amount)
+
+            await client.prepare()
+            if args.action == 'long':
+                await client.open_long(args.symbol, amount_int)
+            else:
+                await client.open_short(args.symbol, amount_int)
+
+        if args.action == 'close':
+            if not args.symbol:
+                 print("Error: --symbol is required for close")
+                 return
+            await client.close_position(args.symbol)
+
     except ValueError as e:
         print(f"Initialization error: {str(e)}")
         return
-    if args.action in ['long', 'short']:
-        if not args.symbol or not args.amount:
-            print("The --symbol and --amount arguments are required for trading.")
-            return
-
-        is_valid, error = validate_symbol(args.symbol)
-        if not is_valid:
-            print(error)
-            return
-
-        is_valid, error = validate_amount(args.amount)
-        if not is_valid:
-            print(error)
-            return
-
-        amount_float = float(args.amount)
-
-        await client.prepare()
-        if args.action == 'long':
-            await client.open_long(args.symbol, amount_float)
-        else:
-            await client.open_short(args.symbol, amount_float)
-
-    if args.action == 'close':
-        if not args.symbol:
-             print("Error: --symbol is required for close")
-             return
-        await client.prepare()
-        await client.close_position(args.symbol)
-    await client.exchange.close()
+    finally:
+        await client.exchange.close()
+        print("\n🔒 З'єднання з біржею закрито безпечно.")
 
 if __name__ == "__main__":
     asyncio.run(main())
