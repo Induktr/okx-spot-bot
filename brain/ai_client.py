@@ -15,31 +15,39 @@ class AIAgent:
         self.model_id = config.GEMINI_MODEL
         self.system_instruction = (
             "Role: You are ASTRA, an advanced autonomous crypto portfolio manager.\n"
-            "Current Task: Analyze news AND current open positions to manage risk for a SPECIFIC COIN.\n"
+            "Current Task: Analyze news and market data for a list of coins. Pick the BEST candidate to act upon (or manage existing positions).\n"
             "Mandates:\n"
-            "1. Focus: Look for news mentioning the coin in 'CURRENT POSITION STATUS'. If no specific news, use global market mood and BTC trend as a proxy.\n"
-            "2. Profit Target: Aim for 30% to 35% profit. You can suggest a custom 'tp_pct' if the trend is very strong.\n"
-            "3. Stop Loss Protection: Default is 20% loss. You can suggest a custom 'sl_pct' based on market volatility.\n"
-            "4. Leverage: You can suggest leverage from 1 to 10 (Max 10x).\n"
-            "Output Format: JSON only: {\"sentiment_score\": 1-10, \"action\": \"BUY/SELL/WAIT/CLOSE/ADJUST\", \"tp_pct\": 0.35, \"sl_pct\": 0.1, \"leverage\": 5, \"reasoning\": \"...\"}.\n"
+            "1. Selection: Review the 'MARKET SNAPSHOT'. Pick ONE coin that has the strongest setup or requires urgent risk adjustment (CLOSE/ADJUST).\n"
+            "2. Profit/Risk: Aim for 30-35% profit and 20% stop loss. Adjust based on trend strength.\n"
+            "3. Money Management: Base 'budget_usdt' on confidence (Sentiment 9-10 -> 25% balance, 6-8 -> 10%). Max 30% per coin.\n"
+            "4. Leverage: Suggested 1-10x.\n"
+            "5. Flipping Positions: If current position is LONG but news suggest a strong reversal, you can return action 'SELL' to flip to SHORT (and vice-versa). The system will handle the transition.\n"
+            "Output Format: JSON only: {\"target_symbol\": \"BTC/USDT:USDT\", \"sentiment_score\": 1-10, \"action\": \"BUY/SELL/WAIT/CLOSE/ADJUST\", \"tp_pct\": 0.35, \"sl_pct\": 0.1, \"leverage\": 5, \"budget_usdt\": 15.0, \"reasoning\": \"...\"}.\n"
+
+            "If no action is needed for any coin, return \"target_symbol\": \"NONE\" and \"action\": \"WAIT\".\n"
+
+
 
         )
 
-    def analyze_news(self, headlines: str, position_data: str = "No open positions.", market_mood: str = "Unknown") -> dict:
+    def analyze_news(self, headlines: str, balance: float, snapshot: str, market_mood: str = "Unknown") -> dict:
         """
-        Sends headlines, position data, and market mood to Gemini.
+        Sends headlines, balance, market snapshot, and mood to Gemini.
         """
         token_guard.wait_if_needed()
         
-        logging.info(f"AI: Starting analysis with Market Mood: {market_mood}")
+        logging.info(f"AI: Selecting best candidate from snapshot. Balance: {balance} USDT")
         
         prompt = (
+            f"--- ACCOUNT BALANCE ---\n{balance} USDT\n\n"
             f"--- GLOBAL MARKET MOOD ---\n{market_mood}\n\n"
-            f"--- MARKET NEWS ---\n{headlines}\n\n"
-            f"--- CURRENT POSITION STATUS ---\n{position_data}\n\n"
-            "Evaluate global sentiment and specific news alongside my current position. "
-            "Decide on the best action: BUY, SELL, WAIT, or CLOSE (if strategy targets met or danger detected)."
+            f"--- MARKET SNAPSHOT (Prices & Positions) ---\n{snapshot}\n\n"
+            f"--- LATEST NEWS ---\n{headlines}\n\n"
+            "Review the snapshot and news. Which coin from the list is the best candidate to BUY, SELL, or requires management (CLOSE/ADJUST)? "
+            "Return the 'target_symbol' and the determined action. If nothing is worth trading, return target_symbol: NONE."
         )
+
+
 
         
         try:

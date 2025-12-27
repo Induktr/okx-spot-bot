@@ -11,3 +11,5 @@ env/
 
 *.log
 *.sqlite3
+
+astra_report_*.md
