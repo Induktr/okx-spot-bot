@@ -10,7 +10,13 @@ class NewsAggregator:
     """
     FEEDS = [
         "https://cointelegraph.com/rss",
-        "https://cryptopanic.com/news/rss/"
+        "https://cryptopanic.com/news/rss/",
+        "https://www.coindesk.com/arc/outboundfeeds/rss/",
+        "https://bitcoinmagazine.com/.rss/full/",
+        "https://www.newsbtc.com/feed/",
+        "https://cryptoslate.com/feed/",
+        "https://decrypt.co/feed",
+        "https://beincrypto.com/feed/"
     ]
 
     @staticmethod
@@ -19,6 +25,25 @@ class NewsAggregator:
         clean = re.compile('<.*?>')
         text = re.sub(clean, '', text)
         return " ".join(text.split())
+
+    def get_market_sentiment(self) -> dict:
+        """
+        Fetches the Crypto Fear & Greed Index (from alternative.me).
+        Returns a dict: {'value': 50, 'classification': 'Neutral'}
+        """
+        try:
+            import requests
+            response = requests.get("https://api.alternative.me/fng/", timeout=10)
+            data = response.json()
+            if 'data' in data:
+                sentiment = data['data'][0]
+                return {
+                    "value": sentiment.get('value'),
+                    "classification": sentiment.get('value_classification')
+                }
+        except Exception as e:
+            print(f"Error fetching sentiment: {e}")
+        return {"value": "Unknown", "classification": "Unknown"}
 
     def get_recent_headlines(self, hours: int = 6) -> str:
         """
@@ -32,8 +57,6 @@ class NewsAggregator:
             try:
                 feed = feedparser.parse(url)
                 for entry in feed.entries:
-                    # Parse published date
-                    # feedparser dates can be tricky, handling common formats
                     published_parsed = entry.get('published_parsed')
                     if published_parsed:
                         pub_date = datetime(*published_parsed[:6])
@@ -50,6 +73,7 @@ class NewsAggregator:
             return "No news headlines found in the last 6 hours."
             
         return "\n".join(unique_headlines)
+
 
 # Initialize aggregator
 news_aggregator = NewsAggregator()

@@ -15,28 +15,32 @@ class AIAgent:
         self.model_id = config.GEMINI_MODEL
         self.system_instruction = (
             "Role: You are ASTRA, an advanced autonomous crypto portfolio manager.\n"
-            "Current Task: Analyze news AND current open positions to manage risk.\n"
+            "Current Task: Analyze news AND current open positions to manage risk for a SPECIFIC COIN.\n"
             "Mandates:\n"
-            "1. Profit Target: If an open position shows 30% to 35% profit (unrealized PnL), prioritize 'CLOSE' to lock in gains.\n"
-            "2. Stop Loss Protection: If a position shows a 20% loss, prioritize 'CLOSE' to protect capital.\n"
-            "3. Market Sentiment: Continue analyzing news for 'BUY', 'SELL', or 'WAIT' signals.\n"
-            "Output Format: JSON only: {\"sentiment_score\": 1-10, \"action\": \"BUY/SELL/WAIT/CLOSE\", \"reasoning\": \"Detailed reasoning for the decision\"}.\n"
-            "Wait Decision: If you suggest 'WAIT', the bot does nothing. If 'CLOSE', the bot exits any open position for the symbol."
+            "1. Focus: Look for news mentioning the coin in 'CURRENT POSITION STATUS'. If no specific news, use global market mood and BTC trend as a proxy.\n"
+            "2. Profit Target: Aim for 30% to 35% profit. You can suggest a custom 'tp_pct' if the trend is very strong.\n"
+            "3. Stop Loss Protection: Default is 20% loss. You can suggest a custom 'sl_pct' based on market volatility.\n"
+            "4. Leverage: You can suggest leverage from 1 to 10 (Max 10x).\n"
+            "Output Format: JSON only: {\"sentiment_score\": 1-10, \"action\": \"BUY/SELL/WAIT/CLOSE/ADJUST\", \"tp_pct\": 0.35, \"sl_pct\": 0.1, \"leverage\": 5, \"reasoning\": \"...\"}.\n"
+
         )
 
-    def analyze_news(self, headlines: str, position_data: str = "No open positions.") -> dict:
+    def analyze_news(self, headlines: str, position_data: str = "No open positions.", market_mood: str = "Unknown") -> dict:
         """
-        Sends headlines and position data to Gemini and returns analysis results.
+        Sends headlines, position data, and market mood to Gemini.
         """
         token_guard.wait_if_needed()
         
-        logging.info(f"AI: Starting analysis of {len(headlines.splitlines())} headlines and current position...")
+        logging.info(f"AI: Starting analysis with Market Mood: {market_mood}")
         
         prompt = (
+            f"--- GLOBAL MARKET MOOD ---\n{market_mood}\n\n"
             f"--- MARKET NEWS ---\n{headlines}\n\n"
             f"--- CURRENT POSITION STATUS ---\n{position_data}\n\n"
-            "Analyze the news and my current position. Decide on the best action: BUY, SELL, WAIT, or CLOSE (if in profit/danger)."
+            "Evaluate global sentiment and specific news alongside my current position. "
+            "Decide on the best action: BUY, SELL, WAIT, or CLOSE (if strategy targets met or danger detected)."
         )
+
         
         try:
             response = self.client.models.generate_content(

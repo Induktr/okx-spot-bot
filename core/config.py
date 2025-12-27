@@ -15,8 +15,6 @@ class Config(BaseSettings):
     GEMINI_API_KEY: str = Field(..., env="GEMINI_API_KEY")
     GEMINI_MODEL: str = "gemini-3-flash-preview"
     GEMINI_RPM_LIMIT: int = 15
-
-
     
     # OKX API
     OKX_API_KEY: str = Field("", env="OKX_API_KEY")
@@ -24,9 +22,16 @@ class Config(BaseSettings):
     OKX_PASSWORD: str = Field("", env="OKX_PASSWORD")
     
     # Trading Settings
-    SYMBOL: str = "BTC/USDT"
+    SYMBOLS: list[str] = [
+        "BTC/USDT:USDT", 
+        "ETH/USDT:USDT", 
+        "SOL/USDT:USDT", 
+        "AVAX/USDT:USDT", 
+        "RENDER/USDT:USDT", 
+        "FET/USDT:USDT"
+    ]
 
-    TRADE_AMOUNT: float = 10.0
+    TRADE_AMOUNT: float = 20.0
     USE_SANDBOX: bool = True
     
     # Scheduler
