@@ -1,8 +1,8 @@
 import logging
 import ccxt
 import time
-from hands.trader import trader
-from core.config import config
+from src.features.trade_executor.trader import trader
+from src.app.config import config
 
 logging.basicConfig(level=logging.INFO)
 

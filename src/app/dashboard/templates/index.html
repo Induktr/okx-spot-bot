@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A.S.T.R.A. Dashboard | Autonomous Trading Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #05070a;
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+        }
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+        }
+        .accent-gradient {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+        }
+        .text-neon-blue { color: #60a5fa; text-shadow: 0 0 10px rgba(96, 165, 250, 0.5); }
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+            <div>
+                <h1 class="text-4xl font-orbitron font-bold tracking-wider text-neon-blue uppercase">A.S.T.R.A. v1.0</h1>
+                <p class="text-gray-400 text-sm mt-1">Quantum Intelligence Core & Autonomous Trading Agent</p>
+            </div>
+            <div class="flex gap-4">
+                <div class="glass-panel px-6 py-3 flex items-center gap-3">
+                    <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    <div>
+                        <p class="text-[10px] uppercase text-gray-500 font-bold">System Status</p>
+                        <p class="text-sm font-semibold">Active & Healthy</p>
+                    </div>
+                </div>
+                <div onclick="openBalanceModal()" class="glass-panel p-4 flex items-center gap-4 border-white/5 bg-white/5 cursor-pointer hover:bg-white/10 transition-all">
+                    <div class="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L12 15.21V19.93zM19.93 12c0 .54-.06 1.07-.18 1.58L15 9V7c0-1.1-.9-2-2-2h-2V3.07c.33-.05.66-.07 1-.07 4.41 0 8 3.59 8 8z"></path></svg>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Global Portfolio</p>
+                        <p id="balance-display" class="text-2xl font-orbitron font-bold text-white">0.00 USDT</p>
+                    </div>
+                </div>
+
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left: Stats & Status -->
+            <div class="space-y-6">
+                <!-- Market Mood Widget -->
+                <div class="glass-panel p-6">
+                    <h3 class="text-sm font-bold uppercase text-gray-400 mb-4 tracking-widest">Market Intelligence</h3>
+                    <div class="flex justify-between items-end">
+                        <div id="active-positions" class="text-3xl font-orbitron text-white">0</div>
+                        <div class="text-xs text-blue-400 font-bold">ACTIVE POSITIONS</div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-white/5 space-y-2" id="positions-list">
+                        <!-- Positions will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Asset Management -->
+                <div class="glass-panel p-6 shadow-xl border-blue-500/20">
+                    <h3 class="text-sm font-bold uppercase text-gray-400 mb-4 tracking-widest">Global Settings</h3>
+                    
+                    <!-- Exchange Switcher -->
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <p class="text-[10px] text-gray-500 font-bold uppercase">Primary Exchange</p>
+                            <button onclick="openAPIModal()" class="text-[10px] text-blue-400 hover:text-white transition-all font-bold uppercase tracking-tighter">
+                                [ Connect API ]
+                            </button>
+                        </div>
+                        <select id="exchange-select" onchange="switchExchange()" 
+                                class="bg-black/40 border border-white/10 rounded px-3 py-2 text-xs w-full focus:outline-none focus:border-blue-500 text-blue-400 font-bold">
+                            <option value="okx">OKX (PERPETUAL)</option>
+                            <option value="binance">BINANCE (FUTURES)</option>
+                            <option value="bybit">BYBIT (UNIFIED)</option>
+                        </select>
+                    </div>
+
+
+                    <!-- Sandbox Toggle -->
+                    <div class="flex items-center justify-between mb-6 bg-blue-500/5 p-3 rounded border border-blue-500/10">
+                        <div>
+                            <p class="text-[10px] text-gray-500 font-bold uppercase">Trading Mode</p>
+                            <p id="mode-status" class="text-[11px] font-bold text-blue-400">DEMO MODE</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="demo-toggle" onchange="switchMode()" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                    
+                    <!-- Add Symbol -->
+                    <div class="flex gap-2">
+                        <input type="text" id="new-symbol" placeholder="SUI/USDT:USDT" 
+                               class="bg-black/40 border border-white/10 rounded px-3 py-2 text-xs w-full focus:outline-none focus:border-blue-500">
+                        <button onclick="addSymbol()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-xs font-bold transition-colors">+</button>
+                    </div>
+                    <p id="symbol-error" class="text-[10px] text-red-500 mt-2 hidden"></p>
+
+                    <div id="symbols-list" class="mt-4 space-y-2 max-h-40 overflow-y-auto pr-1">
+                        <!-- Symbols will be injected here -->
+                    </div>
+                    <p class="text-[10px] text-gray-500 mt-4 leading-tight italic">* Use format: SYMBOL/USDT:USDT for OKX Perpetual Swaps.</p>
+                </div>
+
+                <!-- Sentiment Chart -->
+                <div class="glass-panel p-6 h-64">
+                    <h3 class="text-sm font-bold uppercase text-gray-400 mb-4 tracking-widest">Sentiment Core Flow</h3>
+                    <div class="h-40">
+                        <canvas id="sentimentChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Middle/Right: Logs & Execution -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Tab Controls -->
+                <div class="flex gap-4 border-b border-white/5 pb-2">
+                    <button id="btn-tab-flow" onclick="switchTab('flow')" class="text-xs font-bold uppercase tracking-widest text-blue-400 border-b-2 border-blue-500 pb-2 transition-all">Logical Flow</button>
+                    <button id="btn-tab-history" onclick="switchTab('history')" class="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-white pb-2 transition-all">Trade History</button>
+                </div>
+
+                <!-- Logical Flow Tab -->
+                <div id="tab-flow" class="space-y-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-sm font-bold uppercase text-gray-400 tracking-widest">Autonomous Logical Flow</h3>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                            <span class="text-[10px] text-gray-500 font-bold uppercase">Real-time Sync</span>
+                        </div>
+                    </div>
+                    <div id="log-container" class="glass-panel p-4 space-y-4 max-h-[700px] overflow-y-auto pr-2 custom-scrollbar">
+                        <!-- Logs will be injected here -->
+                    </div>
+                </div>
+
+                <!-- History Tab -->
+                <div id="tab-history" class="hidden space-y-4">
+                    <h3 class="text-sm font-bold uppercase text-gray-400 tracking-widest">Closed Trade History</h3>
+                    <div class="glass-panel overflow-hidden border-white/5">
+                        <table class="w-full text-[11px] text-left">
+                            <thead class="bg-white/5 text-gray-500 font-bold uppercase">
+                                <tr>
+                                    <th class="p-3">Exchange</th>
+                                    <th class="p-3">Asset</th>
+                                    <th class="p-3">Side</th>
+                                    <th class="p-3">Price</th>
+                                    <th class="p-3">Amount</th>
+                                    <th class="p-3">Cost</th>
+                                    <th class="p-3">Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-container" class="divide-y divide-white/5">
+                                <!-- History injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detail-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 border-blue-500/30">
+            <div class="flex justify-between items-start mb-6">
+                <h1 id="modal-title" class="text-3xl font-orbitron font-bold text-white uppercase tracking-tighter"></h1>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-white transition-colors">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white/5 p-4 rounded-lg">
+                    <p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Exchange</p>
+                    <p class="text-sm font-semibold text-blue-400">OKX</p>
+                </div>
+                <div class="bg-white/5 p-4 rounded-lg">
+                    <p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Asset</p>
+                    <p id="modal-asset" class="text-sm font-semibold text-white"></p>
+                </div>
+                <div class="bg-white/5 p-4 rounded-lg">
+                    <p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Amount</p>
+                    <p id="modal-amount" class="text-sm font-semibold text-white"></p>
+                </div>
+                <div class="bg-white/5 p-4 rounded-lg">
+                    <p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Risk Factor</p>
+                    <p id="modal-risk" class="text-sm font-bold"></p>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div>
+                    <h3 class="text-xs font-bold text-blue-500 uppercase tracking-widest mb-2">AI Execution Reasoning</h3>
+                    <p id="modal-reasoning" class="text-gray-300 text-sm leading-relaxed bg-white/5 p-4 rounded-lg italic"></p>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="border-l-2 border-green-500 pl-4">
+                        <p class="text-[10px] text-gray-500 uppercase">Target Profit</p>
+                        <p id="modal-tp" class="text-lg font-orbitron text-green-400"></p>
+                    </div>
+                    <div class="border-l-2 border-red-500 pl-4">
+                        <p class="text-[10px] text-gray-500 uppercase">Stop Loss</p>
+                        <p id="modal-sl" class="text-lg font-orbitron text-red-400"></p>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="closeModal()" class="w-full mt-8 bg-white/10 hover:bg-white/20 py-3 rounded-lg text-sm font-bold transition-all">CLOSE REPORT</button>
+        </div>
+    </div>
+
+    <!-- API Credentials Modal -->
+    <div id="api-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-md p-8 border-blue-500/30">
+            <h2 class="text-2xl font-orbitron font-bold text-white mb-6 uppercase tracking-wider">Connect Exchange API</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] text-gray-500 font-bold uppercase mb-1 block">API Key</label>
+                    <input type="password" id="api-key-input" placeholder="Paste your API key here" 
+                           class="w-full bg-black/40 border border-white/10 rounded px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-[10px] text-gray-500 font-bold uppercase mb-1 block">Secret Key</label>
+                    <input type="password" id="api-secret-input" placeholder="Paste your Secret key here" 
+                           class="w-full bg-black/40 border border-white/10 rounded px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div id="passphrase-container">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase mb-1 block">Passphrase (OKX Only)</label>
+                    <input type="password" id="api-pass-input" placeholder="Your OKX API password" 
+                           class="w-full bg-black/40 border border-white/10 rounded px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+
+            <div class="flex gap-4 mt-8">
+                <button onclick="closeAPIModal()" class="flex-1 px-6 py-3 border border-white/5 text-gray-400 font-bold text-xs uppercase hover:bg-white/5 transition-all rounded">Cancel</button>
+                <button onclick="saveAPIKeys()" class="flex-1 px-6 py-3 bg-blue-600 text-white font-bold text-xs uppercase hover:bg-blue-500 transition-all rounded shadow-lg shadow-blue-500/20">Save & Connect</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Portfolio Breakdown Modal -->
+    <div id="balance-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-sm p-8 border-blue-500/30">
+            <h2 class="text-xl font-orbitron font-bold text-white mb-6 uppercase tracking-wider text-center">Portfolio Breakdown</h2>
+            
+            <div id="balance-breakdown-list" class="space-y-4">
+                <!-- Breakdown entries will be injected here -->
+            </div>
+
+            <button onclick="closeBalanceModal()" class="w-full mt-8 bg-white/10 hover:bg-white/20 py-3 rounded-lg text-xs font-bold uppercase transition-all">Close</button>
+        </div>
+    </div>
+
+    <script>
+        let sentimentChart;
+        let lastFullData = [];
+        let exchangeBalances = {};
+
+        async function updateDashboard() {
+            try {
+                const response = await fetch('/api/data');
+                const data = await response.json();
+                lastFullData = data.entries;
+                exchangeBalances = data.exchange_balances || {};
+
+                // Update Balance
+                document.getElementById('balance-display').innerText = `${data.balance.toFixed(2)} USDT`;
+                document.getElementById('active-positions').innerText = data.positions.length;
+
+                // Update Exchange Select
+                const currentExchange = data.active_exchanges && data.active_exchanges.length > 0 ? data.active_exchanges[0] : 'okx';
+                document.getElementById('exchange-select').value = currentExchange;
+
+                // Update Demo Toggle
+                const isDemo = data.sandbox_modes[currentExchange];
+                const toggle = document.getElementById('demo-toggle');
+                toggle.checked = isDemo;
+                document.getElementById('mode-status').innerText = isDemo ? "DEMO MODE (SANDBOX)" : "REAL TRADING (LIVE)";
+                document.getElementById('mode-status').className = isDemo ? "text-[11px] font-bold text-blue-400" : "text-[11px] font-bold text-red-500";
+
+                // Update History List
+                const historyContainer = document.getElementById('history-container');
+                if (data.history && data.history.length > 0) {
+                    historyContainer.innerHTML = data.history.map(t => `
+                        <tr>
+                            <td class="p-3 font-bold text-gray-400">${t.exchange}</td>
+                            <td class="p-3 font-bold">${t.symbol}</td>
+                            <td class="p-3">
+                                <span class="${t.side === 'buy' ? 'text-green-400' : 'text-red-400'} font-bold uppercase">${t.side}</span>
+                            </td>
+                            <td class="p-3 text-white">${t.price.toFixed(2)}</td>
+                            <td class="p-3 text-gray-400">${t.amount.toFixed(4)}</td>
+                            <td class="p-3 font-bold text-blue-400">${t.cost.toFixed(2)} USDT</td>
+                             <td class="p-3 text-gray-500">${new Date(t.timestamp).toLocaleTimeString()}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    historyContainer.innerHTML = '<tr><td colspan="7" class="p-10 text-center text-gray-600 font-bold uppercase tracking-widest italic">No trades recorded yet</td></tr>';
+                }
+
+                // Update Symbols List
+                const symbolsList = document.getElementById('symbols-list');
+                symbolsList.innerHTML = data.symbols.map(s => `
+                    <div class="flex justify-between items-center bg-white/5 p-2 rounded group">
+                        <span class="text-[10px] font-mono text-blue-300">${s}</span>
+                        <button onclick="deleteSymbol('${s}')" class="text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                `).join('');
+
+                // Update Positions List
+                const posList = document.getElementById('positions-list');
+                posList.innerHTML = data.positions.map(p => `
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-400 font-medium">${p.symbol.split('/')[0]}</span>
+                        <span class="${p.side === 'long' ? 'text-green-400' : 'text-red-400'} font-bold uppercase">${p.side} ${p.leverage}x</span>
+                        <span class="${p.percentage >= 0 ? 'text-green-500' : 'text-red-500'} font-orbitron">${p.percentage.toFixed(2)}%</span>
+                    </div>
+                `).join('') || '<p class="text-xs text-gray-600 italic">No active exposure</p>';
+
+                // Update Logs
+                const logContainer = document.getElementById('log-container');
+                logContainer.innerHTML = data.entries.map((e, index) => {
+                    const statusColor = e.action === 'BUY' ? 'bg-green-500' : 
+                                      e.action === 'SELL' ? 'bg-red-500' : 
+                                      e.action === 'CLOSE' ? 'bg-white' : 'bg-blue-500';
+                    return `
+                    <div onclick="openModal(${index})" class="glass-panel p-4 bg-white/5 hover:bg-white/10 transition-all border-l-4 cursor-pointer ${e.action === 'BUY' ? 'border-green-500' : e.action === 'SELL' ? 'border-red-500' : 'border-gray-500'}">
+                        <div class="flex justify-between items-start mb-2 pointer-events-none">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-1 rounded text-[10px] font-bold text-black ${statusColor}">${e.action}</span>
+                                <span class="text-xs text-gray-500 font-medium">${e.timestamp}</span>
+                            </div>
+                            <span class="text-orbitron text-xs font-bold ${e.score >= 8 ? 'text-green-400' : e.score <= 3 ? 'text-red-400' : 'text-blue-400'}">SENTIMENT: ${e.score}/10</span>
+                        </div>
+                        <p class="text-xs text-gray-300 leading-relaxed italic line-clamp-2">"${e.reasoning}"</p>
+                    </div>
+                    `;
+                }).join('');
+
+                // Update Chart
+                const chartLabels = data.entries.slice(0, 10).reverse().map(e => e.timestamp.split(' ')[1]);
+                const chartData = data.entries.slice(0, 10).reverse().map(e => e.score);
+
+                if (!sentimentChart) {
+                    const ctx = document.getElementById('sentimentChart').getContext('2d');
+                    sentimentChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: chartLabels,
+                            datasets: [{
+                                label: 'Intelligence Sentiment',
+                                data: chartData,
+                                borderColor: '#60a5fa',
+                                backgroundColor: 'rgba(96, 165, 250, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.4,
+                                fill: true,
+                                pointBackgroundColor: '#60a5fa',
+                                pointBorderColor: '#fff',
+                                pointHoverRadius: 5
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                y: { min: 0, max: 10, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
+                                x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                            }
+                        }
+                    });
+                } else {
+                    sentimentChart.data.labels = chartLabels;
+                    sentimentChart.data.datasets[0].data = chartData;
+                    sentimentChart.update('none');
+                }
+
+            } catch (err) {
+                console.error("Dashboard Sync Failed:", err);
+            }
+        }
+
+        function calculateRisk(details) {
+            const leverage = details.leverage || 1;
+            const sl = details.sl_pct || 0.2;
+            const totalRisk = (sl * leverage * 100);
+            
+            if (totalRisk >= 100) return { label: 'EXTREME', color: 'text-red-600' };
+            if (totalRisk >= 50) return { label: 'HIGH', color: 'text-red-400' };
+            if (totalRisk >= 20) return { label: 'MODERATE', color: 'text-yellow-400' };
+            return { label: 'LOW', color: 'text-green-400' };
+        }
+
+        function openBalanceModal() {
+            const list = document.getElementById('balance-breakdown-list');
+            list.innerHTML = Object.entries(exchangeBalances).map(([ex, bal]) => `
+                <div class="flex justify-between items-center bg-white/5 p-4 rounded-lg border border-white/5">
+                    <span class="text-xs font-bold text-gray-400 tracking-widest">${ex}</span>
+                    <span class="text-sm font-orbitron font-bold text-blue-400">${bal.toFixed(2)} USDT</span>
+                </div>
+            `).join('') || '<p class="text-center text-gray-500 italic text-xs">No balance data available</p>';
+            
+            document.getElementById('balance-modal').classList.remove('hidden');
+        }
+
+        function closeBalanceModal() {
+            document.getElementById('balance-modal').classList.add('hidden');
+        }
+
+        function openModal(index) {
+            const entry = lastFullData[index];
+            const details = entry.details || {};
+            const risk = calculateRisk(details);
+
+            document.getElementById('modal-title').innerText = `DEAL SUMMARY: ${details.target_symbol || 'GLOBAL'}`;
+            document.getElementById('modal-asset').innerText = details.target_symbol || 'N/A';
+            document.getElementById('modal-amount').innerText = `${details.budget_usdt || 0} USDT`;
+            document.getElementById('modal-risk').innerText = risk.label;
+            document.getElementById('modal-risk').className = `text-sm font-bold ${risk.color}`;
+            document.getElementById('modal-reasoning').innerText = entry.reasoning;
+            document.getElementById('modal-tp').innerText = `+${((details.tp_pct || 0) * 100).toFixed(0)}%`;
+            document.getElementById('modal-sl').innerText = `-${((details.sl_pct || 0) * 100).toFixed(0)}%`;
+
+            document.getElementById('detail-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('detail-modal').classList.add('hidden');
+        }
+
+        function showError(msg) {
+            const errEl = document.getElementById('symbol-error');
+            errEl.innerText = msg;
+            errEl.classList.remove('hidden');
+            setTimeout(() => errEl.classList.add('hidden'), 4000);
+        }
+
+        function openAPIModal() {
+            const exchange = document.getElementById('exchange-select').value;
+            const passContainer = document.getElementById('passphrase-container');
+            
+            // Only OKX needs passphrase field
+            passContainer.style.display = (exchange === 'okx') ? 'block' : 'none';
+            
+            document.getElementById('api-modal').classList.remove('hidden');
+        }
+
+        function closeAPIModal() {
+            document.getElementById('api-modal').classList.add('hidden');
+            // Clear inputs for security
+            document.getElementById('api-key-input').value = '';
+            document.getElementById('api-secret-input').value = '';
+            document.getElementById('api-pass-input').value = '';
+        }
+
+        async function saveAPIKeys() {
+            const exchange = document.getElementById('exchange-select').value;
+            const apiKey = document.getElementById('api-key-input').value;
+            const secret = document.getElementById('api-secret-input').value;
+            const password = document.getElementById('api-pass-input').value;
+
+            if(!apiKey || !secret) {
+                alert("Please fill in at least API Key and Secret.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/settings/keys', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ exchange, apiKey, secret, password })
+                });
+
+                if(res.ok) {
+                    alert(`Successfully connected to ${exchange.toUpperCase()}`);
+                    closeAPIModal();
+                    updateDashboard();
+                } else {
+                    alert("Failed to save credentials.");
+                }
+            } catch (e) {
+                alert("Network error.");
+            }
+        }
+
+        async function addSymbol() {
+            const input = document.getElementById('new-symbol');
+            const symbol = input.value.trim().toUpperCase();
+            
+            if(!symbol) return;
+            
+            // Regex Validation (Frontend)
+            const pattern = /^[A-Z0-9-]+\/USST:USDT$/; // Typo in my prompt example SYMBOL/USDT:USDT
+            // Correcting to a more flexible one for OKX SYMBOL/USDT:USDT 
+            const okxPattern = /^[A-Z0-9-]+\/USDT:USDT$/;
+
+            if(!okxPattern.test(symbol)) {
+                showError("Invalid format! Use SYMBOL/USDT:USDT");
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/symbols/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol })
+                });
+                const result = await res.json();
+                
+                if(res.ok) {
+                    input.value = '';
+                    updateDashboard();
+                } else {
+                    showError(result.message || "Failed to add symbol");
+                }
+            } catch (e) {
+                showError("Network error. Try again.");
+            }
+        }
+
+        async function switchExchange() {
+            const exchange = document.getElementById('exchange-select').value;
+            try {
+                const res = await fetch('/api/settings/exchange', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ exchange })
+                });
+                if(res.ok) {
+                    console.log(`Switched to ${exchange}`);
+                    updateDashboard(); // Refresh to see new balance/positions
+                }
+            } catch (e) {
+                showError("Failed to switch exchange.");
+            }
+        }
+
+        async function switchMode() {
+            const exchange = document.getElementById('exchange-select').value;
+            const is_demo = document.getElementById('demo-toggle').checked;
+            try {
+                const res = await fetch('/api/settings/sandbox', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ exchange, is_demo })
+                });
+                if(res.ok) {
+                    console.log(`Switched ${exchange} to ${is_demo ? 'DEMO' : 'REAL'}`);
+                    updateDashboard();
+                }
+            } catch (e) {
+                showError("Failed to switch trading mode.");
+            }
+        }
+
+        function switchTab(tabId) {
+            const flowTab = document.getElementById('tab-flow');
+            const historyTab = document.getElementById('tab-history');
+            const btnFlow = document.getElementById('btn-tab-flow');
+            const btnHistory = document.getElementById('btn-tab-history');
+
+            if (tabId === 'flow') {
+                flowTab.classList.remove('hidden');
+                historyTab.classList.add('hidden');
+                btnFlow.classList.add('text-blue-400', 'border-b-2', 'border-blue-500');
+                btnFlow.classList.remove('text-gray-500');
+                btnHistory.classList.add('text-gray-500');
+                btnHistory.classList.remove('text-blue-400', 'border-b-2', 'border-blue-500');
+            } else {
+                flowTab.classList.add('hidden');
+                historyTab.classList.remove('hidden');
+                btnHistory.classList.add('text-blue-400', 'border-b-2', 'border-blue-500');
+                btnHistory.classList.remove('text-gray-500');
+                btnFlow.classList.add('text-gray-500');
+                btnFlow.classList.remove('text-blue-400', 'border-b-2', 'border-blue-500');
+            }
+        }
+
+        setInterval(updateDashboard, 5000);
+        updateDashboard();
+    </script>
+</body>
+</html>

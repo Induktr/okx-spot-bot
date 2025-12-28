@@ -2,8 +2,8 @@ from google import genai
 from google.genai import types
 import json
 import logging
-from core.config import config
-from core.token_guard import token_guard
+from src.app.config import config
+from src.shared.utils.token_guard import token_guard
 
 class AIAgent:
     """
@@ -14,20 +14,18 @@ class AIAgent:
         self.client = genai.Client(api_key=config.GEMINI_API_KEY)
         self.model_id = config.GEMINI_MODEL
         self.system_instruction = (
-            "Role: You are ASTRA, an advanced autonomous crypto portfolio manager.\n"
-            "Current Task: Analyze news and market data for a list of coins. Pick the BEST candidate to act upon (or manage existing positions).\n"
+            "Role: You are ASTRA, an advanced autonomous crypto portfolio manager with expertise in both Fundamental and Technical Analysis.\n"
+            "Current Task: Analyze news and market data (Price + RSI + EMA) for a list of coins. Pick the BEST candidate.\n"
             "Mandates:\n"
-            "1. Selection: Review the 'MARKET SNAPSHOT'. Pick ONE coin that has the strongest setup or requires urgent risk adjustment (CLOSE/ADJUST).\n"
-            "2. Profit/Risk: Aim for 30-35% profit and 20% stop loss. Adjust based on trend strength.\n"
-            "3. Money Management: Base 'budget_usdt' on confidence (Sentiment 9-10 -> 25% balance, 6-8 -> 10%). Max 30% per coin.\n"
-            "4. Leverage: Suggested 1-10x.\n"
-            "5. Flipping Positions: If current position is LONG but news suggest a strong reversal, you can return action 'SELL' to flip to SHORT (and vice-versa). The system will handle the transition.\n"
-            "Output Format: JSON only: {\"target_symbol\": \"BTC/USDT:USDT\", \"sentiment_score\": 1-10, \"action\": \"BUY/SELL/WAIT/CLOSE/ADJUST\", \"tp_pct\": 0.35, \"sl_pct\": 0.1, \"leverage\": 5, \"budget_usdt\": 15.0, \"reasoning\": \"...\"}.\n"
-
+            "1. Selection: Review 'MARKET SNAPSHOT'. Consider News + Technical Indicators (RSI, EMA). \n"
+            "   - RSI Tip: <30 is Oversold (Potential Buy), >70 is Overbought (Potential Sell).\n"
+            "   - EMA Tip: Price above EMA(20) suggests an Up-trend.\n"
+            "2. Strategy: Look for CONVERGENCE. If News is BULLISH and RSI is low/neutral, it's a high-confidence signal.\n"
+            "3. Profit/Risk: Aim for 30-35% profit and 20% SL. Adjust based on market context.\n"
+            "4. Money Management: Base 'budget_usdt' on confidence (Sentiment 9-10 -> 25% balance, 6-8 -> 10%). Max 30% per coin.\n"
+            "5. Flipping: You can return action 'SELL' to flip a LONG to SHORT (and vice-versa) if trend and news flip.\n"
+            "Output Format: JSON only: {\"target_symbol\": \"BTC/USDT:USDT\", \"sentiment_score\": 1-10, \"action\": \"BUY/SELL/WAIT/CLOSE/ADJUST\", \"tp_pct\": 0.35, \"sl_pct\": 0.1, \"leverage\": 5, \"budget_usdt\": 15.0, \"reasoning\": \"Explain convergence of News + Technicals...\"}.\n"
             "If no action is needed for any coin, return \"target_symbol\": \"NONE\" and \"action\": \"WAIT\".\n"
-
-
-
         )
 
     def analyze_news(self, headlines: str, balance: float, snapshot: str, market_mood: str = "Unknown") -> dict:
@@ -47,9 +45,6 @@ class AIAgent:
             "Return the 'target_symbol' and the determined action. If nothing is worth trading, return target_symbol: NONE."
         )
 
-
-
-        
         try:
             response = self.client.models.generate_content(
                 model=self.model_id,
@@ -90,7 +85,6 @@ class AIAgent:
             
             return result
 
-
         except Exception as e:
             error_msg = f"AI Analysis failed: {str(e)}"
             logging.error(error_msg)
@@ -100,8 +94,5 @@ class AIAgent:
                 "reasoning": error_msg
             }
 
-
-
 # Initialize AI client
 ai_client = AIAgent()
-

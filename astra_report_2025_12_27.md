@@ -2070,3 +2070,468 @@ Synced/Adjusted TP/SL: {'tp': '3165195342027206656', 'sl': '3165195353234386944'
 [FET/USDT] No execution needed.
 ```
 ---
+
+## Cycle Entry: 2025-12-27 21:49:55
+- **Sentiment Score:** 7/10
+- **Action Strategy:** 🔴 SELL
+- **Token Usage Details:**
+    - **Intake Tokens:** 2272 (The size of news + history)
+    - **Reflection Tokens:** 177 (The complexity of AI thinking)
+    - **Total Tokens:** 6261
+- **Analysis Capacity Remaining:** 99.37% (Approx. 993,739 tokens left for today)
+- **Reasoning:** Market sentiment is currently in 'Extreme Fear' (23), and technical data suggests a retest of the $85,000 level due to bearish on-chain weakness and low futures open interest. Since the current position is a long, an urgent flip to SELL is warranted to capture the downside toward $85k while staying below the $90,650 resistance identified in the news.
+- **Execution Details:** 
+```json
+[BTC/USDT:USDT] EXECUTED SELL & SYNCED TP/SL: {'tp': '3166283275929653248', 'sl': '3166283286365081600'}
+```
+---
+
+## Cycle Entry: 2025-12-27 21:57:33
+- **Sentiment Score:** 3/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 1216 (The size of news + history)
+    - **Reflection Tokens:** 145 (The complexity of AI thinking)
+    - **Total Tokens:** 2274
+- **Analysis Capacity Remaining:** 99.77% (Approx. 997,726 tokens left for today)
+- **Reasoning:** The market is currently in a state of Extreme Fear (23), which typically precedes high volatility. While there is a significant potential for a short squeeze ($7B in liquidations if price rises 10%), current on-chain data shows stablecoins leaving exchanges and short-term holders facing prolonged pain. These factors suggest a lack of immediate buy-side liquidity. I recommend waiting for a sentiment reversal or a stabilized floor before opening a new BTC position.
+- **Execution Details:** 
+```json
+[BTC/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 21:57:33
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3-flash\nPlease retry in 26.331775099s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-3-flash'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '26s'}]}}
+- **Execution Details:** 
+```json
+[ETH/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 21:57:37
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3-flash\nPlease retry in 22.33619725s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-3-flash'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '22s'}]}}
+- **Execution Details:** 
+```json
+[SOL/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 21:57:42
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3-flash\nPlease retry in 18.330498274s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-3-flash'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '18s'}]}}
+- **Execution Details:** 
+```json
+[AVAX/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 21:57:45
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3-flash\nPlease retry in 14.33441178s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-3-flash', 'location': 'global'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '14s'}]}}
+- **Execution Details:** 
+```json
+[RNDR/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 21:57:49
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3-flash\nPlease retry in 10.32616732s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-3-flash'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '10s'}]}}
+- **Execution Details:** 
+```json
+[RENDER/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 21:57:53
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3-flash\nPlease retry in 6.302142814s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-3-flash', 'location': 'global'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '6s'}]}}
+- **Execution Details:** 
+```json
+[FET/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:01:39
+- **Sentiment Score:** 4/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 1237 (The size of news + history)
+    - **Reflection Tokens:** 144 (The complexity of AI thinking)
+    - **Total Tokens:** 2256
+- **Analysis Capacity Remaining:** 99.77% (Approx. 997,744 tokens left for today)
+- **Reasoning:** The global market sentiment is extremely fearful (Fear & Greed Index at 23). While there are long-term bullish catalysts related to Bitcoin DeFi and a potential short squeeze mentioned in the news, short-term holders are reportedly facing 'prolonged pain.' Entering a new position during extreme fear carries high risk of further short-term volatility. It is prudent to wait for clearer signs of market consolidation or reversal before initiating a buy or sell order.
+- **Execution Details:** 
+```json
+[BTC/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:01:39
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 20.496528692s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-robotics-er-1.5-preview', 'location': 'global'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '20s'}]}}
+- **Execution Details:** 
+```json
+[ETH/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:01:43
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 16.497451877s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-robotics-er-1.5-preview'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '16s'}]}}
+- **Execution Details:** 
+```json
+[SOL/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:01:47
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 12.501667383s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-robotics-er-1.5-preview', 'location': 'global'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '12s'}]}}
+- **Execution Details:** 
+```json
+[AVAX/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:01:51
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 8.500975909s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-robotics-er-1.5-preview'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '8s'}]}}
+- **Execution Details:** 
+```json
+[RNDR/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:01:55
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 4.499205749s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-robotics-er-1.5-preview'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '4s'}]}}
+- **Execution Details:** 
+```json
+[RENDER/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:01:59
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 477.167308ms.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-robotics-er-1.5-preview'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '0s'}]}}
+- **Execution Details:** 
+```json
+[FET/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:05:03
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 56.505617013s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-robotics-er-1.5-preview'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '56s'}]}}
+- **Execution Details:** 
+```json
+[BTC/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:05:07
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 52.886963566s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-robotics-er-1.5-preview', 'location': 'global'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '52s'}]}}
+- **Execution Details:** 
+```json
+[ETH/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:05:11
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 48.881515455s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-robotics-er-1.5-preview', 'location': 'global'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '48s'}]}}
+- **Execution Details:** 
+```json
+[SOL/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:05:15
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 44.885416154s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-robotics-er-1.5-preview'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '44s'}]}}
+- **Execution Details:** 
+```json
+[AVAX/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:05:19
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 40.882950844s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-robotics-er-1.5-preview'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '40s'}]}}
+- **Execution Details:** 
+```json
+[RNDR/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:05:23
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 36.882420207s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-robotics-er-1.5-preview'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '36s'}]}}
+- **Execution Details:** 
+```json
+[RENDER/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:05:27
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 32.889153602s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-robotics-er-1.5-preview'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '32s'}]}}
+- **Execution Details:** 
+```json
+[FET/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:08:44
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 15.693376173s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-robotics-er-1.5-preview', 'location': 'global'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '15s'}]}}
+- **Execution Details:** 
+```json
+[BTC/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:08:47
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 11.992042064s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-robotics-er-1.5-preview', 'location': 'global'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '11s'}]}}
+- **Execution Details:** 
+```json
+[ETH/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:08:51
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 7.995783549s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-robotics-er-1.5-preview', 'location': 'global'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '7s'}]}}
+- **Execution Details:** 
+```json
+[SOL/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:08:55
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 3.992092944s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-robotics-er-1.5-preview'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '3s'}]}}
+- **Execution Details:** 
+```json
+[AVAX/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:08:59
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 59.99114619s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-robotics-er-1.5-preview', 'location': 'global'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '59s'}]}}
+- **Execution Details:** 
+```json
+[RNDR/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:09:03
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 55.992242764s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-robotics-er-1.5-preview'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '55s'}]}}
+- **Execution Details:** 
+```json
+[RENDER/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:09:07
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-robotics-er-1.5-preview\nPlease retry in 51.993244501s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-robotics-er-1.5-preview', 'location': 'global'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '51s'}]}}
+- **Execution Details:** 
+```json
+[FET/USDT] No execution needed.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:46:24
+- **Sentiment Score:** 8/10
+- **Action Strategy:** 🟢 BUY
+- **Token Usage Details:**
+    - **Intake Tokens:** 2082 (The size of news + history)
+    - **Reflection Tokens:** 184 (The complexity of AI thinking)
+    - **Total Tokens:** 3823
+- **Analysis Capacity Remaining:** 99.62% (Approx. 996,177 tokens left for today)
+- **Reasoning:** While the global market mood is 'Extreme Fear', Ethereum shows strong bullish convergence. Fundamental data indicates massive whale accumulation (+$350M) and increased staking activity (Bitmine), suggesting a disconnect between institutional and retail sentiment. Technically, RSI is neutral (48.77) and the price is holding the EMA(20) as support, providing a high-confidence entry point for a relief rally toward $3,500+.
+- **Execution Details:** 
+```json
+[ETH/USDT:USDT] Already in ETH/USDT:USDT LONG. Action BUY ignored.
+```
+---
+
+## Cycle Entry: 2025-12-27 22:58:54
+- **Sentiment Score:** 5/10
+- **Action Strategy:** 🟡 WAIT
+- **Token Usage Details:**
+    - **Intake Tokens:** 0 (The size of news + history)
+    - **Reflection Tokens:** 0 (The complexity of AI thinking)
+    - **Total Tokens:** 0
+- **Analysis Capacity Remaining:** 100.00% (Approx. 1,000,000 tokens left for today)
+- **Reasoning:** AI Analysis failed: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3-flash\nPlease retry in 5.186921025s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-3-flash'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '5s'}]}}
+- **Execution Details:** 
+```json
+Cycle complete: No action chosen.
+```
+---

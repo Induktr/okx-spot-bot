@@ -1,6 +1,6 @@
 import time
 from threading import Lock
-from .config import config
+from src.app.config import config
 
 class TokenGuard:
     """

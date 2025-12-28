@@ -1,0 +1,17 @@
+{
+    "active_exchanges": [
+        "okx"
+    ],
+    "sandbox_modes": {
+        "okx": false,
+        "binance": true,
+        "bybit": false
+    },
+    "okx_key": "3366564b-704c-4767-b478-c004ad8e62df",
+    "okx_secret": "E602A88100E37C622EB2BD72ED887000",
+    "okx_pass": "=123-=,cmsasdA2zx",
+    "binance_key": "6E4lEcIWRJaOWHM8OYdPtqPTneA9rdsmEMPRM1IA2KKjf58weJlqpPV4q3aXqF0H",
+    "binance_secret": "dG1bAVbinMn6OV6BQkZ2FYDh1YnaWKfj61BCNQ5DWeMsW1MOx89A6y4BaLi5dhc6",
+    "bybit_key": "",
+    "bybit_secret": ""
+}

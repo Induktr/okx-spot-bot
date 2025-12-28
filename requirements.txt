@@ -1,9 +1,0 @@
-google-genai
-
-ccxt
-feedparser
-schedule
-python-dotenv
-pydantic
-pydantic-settings
-requests
