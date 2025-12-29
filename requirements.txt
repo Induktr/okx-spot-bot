@@ -1,0 +1,9 @@
+ccxt
+flask
+google-genai
+python-dotenv
+pydantic
+pydantic-settings
+schedule
+requests
+feedparser

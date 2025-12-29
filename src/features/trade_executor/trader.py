@@ -30,10 +30,11 @@ class Trader:
 
         if is_demo:
             if exchange_id == 'binance':
-                # New CCXT way for Binance Demo Trading (Futures)
-                if hasattr(self.exchange, 'set_demo_trading'):
-                    self.exchange.set_demo_trading(True, True) # (enabled, private_keys)
-                    logging.info("Trader: Binance Demo Trading Enabled")
+                # Force Binance Demo Trading (Futures)
+                self.exchange.set_demo_trading(True)
+                self.exchange.urls['api']['fapi'] = 'https://demo-fapi.binance.com'
+                self.exchange.options['defaultType'] = 'future'
+                logging.info("Trader: Binance Demo Trading Forced (fapi)")
             elif hasattr(self.exchange, 'set_sandbox_mode'):
                 self.exchange.set_sandbox_mode(True)
                 logging.info(f"Trader: {exchange_id} Demo Mode Active")
@@ -116,7 +117,17 @@ class Trader:
             logging.error(f"[{self.exchange_id}] Positions error: {e}")
             return []
 
-    def execute_order(self, symbol, side, budget_usdt):
+    def get_funding_rate(self, symbol):
+        """Fetches the current funding rate for a swap/future."""
+        try:
+            # Note: Not all exchanges support this standard method, but major ones do.
+            funding = self.exchange.fetch_funding_rate(symbol)
+            return float(funding.get('fundingRate', 0.0))
+        except Exception as e:
+            # logging.debug(f"[{self.exchange_id}] Funding Rate not available: {e}") 
+            return 0.0
+
+    def execute_order(self, symbol, side, budget_usdt, leverage=3):
         """Unified order execution with manual contract calculation for Swaps."""
         side = side.upper()
         if side == "WAIT": return "WAIT"
@@ -129,20 +140,20 @@ class Trader:
 
             # Set Leverage
             try:
-                self.exchange.set_leverage(self.leverage, symbol)
+                self.exchange.set_leverage(leverage, symbol)
             except: pass
 
             # Calculate Contracts (sz)
             # Formula: (budget * leverage) / (contract_size * price)
             contract_size = float(market.get('contractSize', 1))
-            total_nominal_value = budget_usdt * self.leverage
+            total_nominal_value = budget_usdt * leverage
             raw_sz = total_nominal_value / (contract_size * current_price)
             
             # Floor to minimum lot size
             min_sz = float(market['limits']['amount']['min'] or 1)
             sz = max(min_sz, round(raw_sz / min_sz) * min_sz)
 
-            logging.info(f"[{self.exchange_id}] Executing {side} on {symbol}. Budget ${budget_usdt} (x{self.leverage}) -> {sz} contracts.")
+            logging.info(f"[{self.exchange_id}] Executing {side} on {symbol}. Budget ${budget_usdt} (x{leverage}) -> {sz} contracts.")
             
             if side == "BUY":
                 return self.exchange.create_market_buy_order(symbol, sz)

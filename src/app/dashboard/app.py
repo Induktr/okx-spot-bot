@@ -14,6 +14,17 @@ from src.app.config import config
 
 app = Flask(__name__)
 
+@app.route('/api/bot_status', methods=['GET'])
+def get_bot_status():
+    return jsonify({"active": config.BOT_ACTIVE})
+
+@app.route('/api/toggle_bot', methods=['POST'])
+def toggle_bot():
+    config.BOT_ACTIVE = not config.BOT_ACTIVE
+    status = "RESUMED" if config.BOT_ACTIVE else "PAUSED"
+    logging.info(f"USER COMMAND: Bot {status}")
+    return jsonify({"active": config.BOT_ACTIVE, "message": f"Bot {status}"})
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -60,12 +71,29 @@ def update_keys():
     data = request.json
     exchange = data.get('exchange', '').lower()
     
+    # Update AI Settings
+    config.AI_PROVIDER = data.get('ai_provider', config.AI_PROVIDER)
+    
+    gemini_key = data.get('gemini_key', '')
+    if gemini_key: config.GEMINI_API_KEY = gemini_key
+    
+    openai_key = data.get('openai_key', '')
+    if openai_key: config.OPENAI_API_KEY = openai_key
+    
+    deepseek_key = data.get('deepseek_key', '')
+    if deepseek_key: config.DEEPSEEK_API_KEY = deepseek_key
+    
+    anthropic_key = data.get('anthropic_key', '')
+    if anthropic_key: config.ANTHROPIC_API_KEY = anthropic_key
+    
+    config.save_settings() # Persist immediately
+    
     if exchange == 'okx':
-        config.OKX_API_KEY = data.get('apiKey', config.OKX_API_KEY)
+        config.OKX_API_KEY = data.get('key', config.OKX_API_KEY)
         config.OKX_SECRET = data.get('secret', config.OKX_SECRET)
-        config.OKX_PASSWORD = data.get('password', config.OKX_PASSWORD)
+        config.OKX_PASSWORD = data.get('passphrase', config.OKX_PASSWORD)
     elif exchange == 'binance':
-        config.BINANCE_API_KEY = data.get('apiKey', config.BINANCE_API_KEY)
+        config.BINANCE_API_KEY = data.get('key', config.BINANCE_API_KEY)
         config.BINANCE_SECRET = data.get('secret', config.BINANCE_SECRET)
     elif exchange == 'bybit':
         config.BYBIT_API_KEY = data.get('apiKey', config.BYBIT_API_KEY)

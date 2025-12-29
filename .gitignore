@@ -13,3 +13,8 @@ env/
 *.sqlite3
 
 astra_report_*.md
+
+# SECRETS (Do NOT Commit)
+data/admin_keys.json
+data/settings.json
+cloud_brain.py

@@ -1,5 +1,6 @@
 from datetime import datetime
 import os
+import json
 
 class Scribe:
     """
@@ -38,6 +39,10 @@ class Scribe:
         LIMIT = 1000000
         remaining_tokens = LIMIT - total_tokens
         remaining_percentage = (remaining_tokens / LIMIT) * 100
+        
+        # Prepare Full JSON Payload for Parsing
+        log_payload = sentiment_data.copy()
+        log_payload['execution_summary'] = execution_result
             
         report_entry = f"""
 ## Cycle Entry: {timestamp}
@@ -51,7 +56,7 @@ class Scribe:
 - **Reasoning:** {reasoning}
 - **Execution Details:** 
 ```json
-{execution_result}
+{json.dumps(log_payload, indent=4)}
 ```
 ---
 """

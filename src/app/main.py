@@ -22,12 +22,26 @@ def astra_cycle():
 
     logging.info(f"--- Starting A.S.T.R.A. Selective Cycle ---")
     
+    if not config.BOT_ACTIVE:
+        logging.info("⏸️ Bot is PAUSED by user request. Skipping cycle.")
+        return
+
     try:
         # 0. Global Sensors: News & Sentiment
         logging.info("Step 0: Fetching global news and sentiment...")
         headlines = news_aggregator.get_recent_headlines(hours=24)
         sentiment_idx = news_aggregator.get_market_sentiment()
         mood_context = f"Market Mood: {sentiment_idx['value']} ({sentiment_idx['classification']})"
+        
+        # SMART WAKE-UP CHECK
+        if not news_aggregator.has_significant_events(headlines):
+            logging.info("💤 Market is QUIET (No Trigger Words). Skipping AI analysis to save resources.")
+            scribe.log_cycle({
+                "action": "SLEEP",
+                "sentiment_score": 0,
+                "reasoning": "Market is Quiet (No significant news events found in the last 24h). AI is in Standby Mode to save resources."
+            }, "News Filter: No significant events detected.")
+            return
         
         # 1. Collect Market Snapshot (Across ALL Exchanges)
         logging.info(f"Step 1: Building combined snapshot for {len(traders)} exchanges...")
@@ -40,14 +54,49 @@ def astra_cycle():
             all_positions = t.get_positions()
             
             for sim in config.SYMBOLS:
-                price = t.get_ticker(sim)
+                # Market Data (Price + Volume + Funding)
+                ticker_data = t.get_ticker(sim)
+                # If get_ticker returns float (old logic), handle it. If dict, extract.
+                price = 0.0
+                volume_24h = 0.0
+                
+                # Check if trader.get_ticker returns the direct price or full dict
+                # We need to peek at trader.py or just use exchange directly if needed, 
+                # but let's assume get_ticker returns 'last' price as per previous code.
+                # Actually, let's call exchange.fetch_ticker directly for more data safely
+                try:
+                    full_ticker = t.exchange.fetch_ticker(sim)
+                    price = full_ticker['last']
+                    volume_24h = float(full_ticker.get('quoteVolume', 0) or 0) / 1_000_000 # In Millions
+                except:
+                    price = t.get_ticker(sim) # Fallback
+
+                funding_rate = t.get_funding_rate(sim) * 100 # Convert to %
+                
                 pos = [p for p in all_positions if p['symbol'] == sim]
                 pos_str = "No Position"
                 if pos:
                     p = pos[0]
                     pos_str = f"In {p['side']} (PnL: {p.get('unrealizedPnl', 0)} USDT)"
                 
-                snapshot_lines.append(f"- [{eid.upper()}] {sim}: Price {price} | Status: {pos_str}")
+                # Technical Analysis Injection
+                ta_str = "| TA: N/A"
+                try:
+                    candles = t.get_ohlcv(sim, timeframe='1h', limit=50)
+                    if candles:
+                        closes = [c[4] for c in candles]
+                        rsi = tech_analysis.calculate_rsi(closes)
+                        ema = tech_analysis.calculate_ema(closes)
+                        
+                        trend = "NEUTRAL"
+                        if ema:
+                            trend = "BULLISH" if price > ema else "BEARISH"
+                        
+                        ta_str = f"| RSI(1h): {rsi} | Trend: {trend} | Price vs EMA: {'Above' if price > ema else 'Below'}"
+                except Exception as ta_err:
+                    logging.warning(f"TA Error for {sim}: {ta_err}")
+
+                snapshot_lines.append(f"- [{eid.upper()}] {sim}: Price {price} | Vol: {volume_24h:.1f}M | Fund: {funding_rate:.4f}% {ta_str} | Status: {pos_str}")
         
         market_snapshot = "\n".join(snapshot_lines)
         
@@ -81,8 +130,9 @@ def astra_cycle():
                         time.sleep(2) # Wait for settlement
                 
                 # Execute new order
-                t.leverage = min(int(analysis.get('leverage', 3)), 10)
-                res = t.execute_order(symbol, decision, float(analysis.get('budget_usdt', 10)))
+                # Execute new order
+                lev = min(int(analysis.get('leverage', 3)), 10)
+                res = t.execute_order(symbol, decision, float(analysis.get('budget_usdt', 10)), leverage=lev)
                 
                 # 4. Immediate Protection Sync
                 time.sleep(2)
@@ -131,10 +181,10 @@ def main():
     # Run once at startup
     astra_cycle()
     
-    # Schedule every 2 hours
-    schedule.every(2).hours.do(astra_cycle)
+    # Schedule every 5 minutes
+    schedule.every(5).minutes.do(astra_cycle)
     
-    logging.info("Scheduler active: Selecting the best coin to trade every 2 hours.")
+    logging.info("Scheduler active: Selecting the best coin to trade every 5 minutes.")
     
     while True:
         schedule.run_pending()

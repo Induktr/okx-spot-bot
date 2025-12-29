@@ -11,7 +11,9 @@ class AIAgent:
     Integrates with Google Gemini via the new google-genai SDK.
     """
     def __init__(self):
-        self.client = genai.Client(api_key=config.GEMINI_API_KEY)
+        self.keys = config.GEMINI_KEYS if config.GEMINI_KEYS else [config.GEMINI_API_KEY]
+        self.current_key_index = 0
+        self._init_client()
         self.model_id = config.GEMINI_MODEL
         self.system_instruction = (
             "Role: You are ASTRA, an advanced autonomous crypto portfolio manager with expertise in both Fundamental and Technical Analysis.\n"
@@ -28,71 +30,153 @@ class AIAgent:
             "If no action is needed for any coin, return \"target_symbol\": \"NONE\" and \"action\": \"WAIT\".\n"
         )
 
+    def _init_client(self):
+        # 1. User-Provided Key (Highest Priority)
+        user_key = getattr(config, 'GEMINI_API_KEY', '')
+        if user_key and len(user_key) > 10 and not user_key.startswith("AIzaSyCTX"): 
+            self.client = genai.Client(api_key=user_key)
+            logging.info("AI: Using USER PROVIDED Gemini Key (High Performance)")
+            return
+
+        # 2. Internal Pool (Backup/Demo)
+        key = self.keys[self.current_key_index]
+        self.client = genai.Client(api_key=key)
+        logging.info(f"AI: Using Internal Key Pool #{self.current_key_index + 1} (Demo Limits)")
+
+    def _rotate_key(self):
+        self.current_key_index = (self.current_key_index + 1) % len(self.keys)
+        self._init_client()
+        logging.warning(f"AI: API Limit reached. Rotating to Key #{self.current_key_index + 1}")
+
     def analyze_news(self, headlines: str, balance: float, snapshot: str, market_mood: str = "Unknown") -> dict:
         """
-        Sends headlines, balance, market snapshot, and mood to Gemini.
+        Routes the analysis request to the selected AI Provider.
+        """
+        provider = config.AI_PROVIDER
+        logging.info(f"AI: Using Brain Provider [{provider.upper()}]")
+        
+        # Cloud Override
+        if config.USE_CLOUD_AI:
+            return self._analyze_cloud(headlines, balance, snapshot, market_mood)
+
+        if provider == "openai" or provider == "deepseek":
+            return self._analyze_openai_compatible(headlines, balance, snapshot, market_mood)
+        elif provider == "anthropic":
+            return self._analyze_anthropic(headlines, balance, snapshot, market_mood)
+        else:
+            return self._analyze_gemini(headlines, balance, snapshot, market_mood)
+
+    def _analyze_cloud(self, headlines, balance, snapshot, market_mood):
+        # ... Cloud Logic (Same as before) ...
+        import requests
+        try:
+            prompt = self._build_prompt(headlines, balance, snapshot, market_mood)
+            response = requests.post(
+                config.CLOUD_AI_NODES[0], # Using first node for now
+                headers={"X-ASTRA-TOKEN": config.CLOUD_AI_TOKEN},
+                json={
+                    "prompt": prompt,
+                    "system_instruction": self.system_instruction,
+                    "model": self.model_id
+                },
+                timeout=65 # Increased timeout for cold starts
+            )
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logging.error(f"⚠️ Cloud Brain Error: {e}")
+            logging.info("🔄 Switching to LOCAL Brain (Backup Mode)...")
+            return self._analyze_gemini(headlines, balance, snapshot, market_mood)
+
+    def _build_prompt(self, headlines, balance, snapshot, market_mood):
+        return (
+            f"--- ACCOUNT BALANCE ---\n{balance} USDT\n\n"
+            f"--- GLOBAL MARKET MOOD ---\n{market_mood}\n\n"
+            f"--- MARKET SNAPSHOT ---\n{snapshot}\n\n"
+            f"--- LATEST NEWS ---\n{headlines}\n\n"
+            "Review the snapshot and news. Which coin from the list is the best candidate to BUY, SELL, or requires management (CLOSE/ADJUST)? "
+            "Return the 'target_symbol' and the determined action. If nothing is worth trading, return target_symbol: NONE. "
+            "IMPORTANT: In your 'reasoning', you MUST cite the RSI value and Trend provided in the SNAPSHOT to justify your decision."
+        )
+
+    def _analyze_openai_compatible(self, headlines, balance, snapshot, market_mood):
+        from openai import OpenAI
+        
+        # Select Key & Base URL
+        if config.AI_PROVIDER == "deepseek":
+            client = OpenAI(api_key=config.DEEPSEEK_API_KEY, base_url="https://api.deepseek.com/v1")
+            model = config.DEEPSEEK_MODEL
+        else:
+            client = OpenAI(api_key=config.OPENAI_API_KEY)
+            model = config.OPENAI_MODEL
+            
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": self.system_instruction},
+                    {"role": "user", "content": self._build_prompt(headlines, balance, snapshot, market_mood)}
+                ],
+                response_format={ "type": "json_object" }
+            )
+            return json.loads(response.choices[0].message.content)
+        except Exception as e:
+            logging.error(f"OpenAI/DeepSeek Error: {e}")
+            return {"sentiment_score": 5, "action": "WAIT", "reasoning": str(e)}
+
+    def _analyze_anthropic(self, headlines, balance, snapshot, market_mood):
+        import anthropic
+        client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+        
+        try:
+            message = client.messages.create(
+                model=config.ANTHROPIC_MODEL,
+                max_tokens=1024,
+                system=self.system_instruction,
+                messages=[
+                    {"role": "user", "content": self._build_prompt(headlines, balance, snapshot, market_mood)}
+                ]
+            )
+            return json.loads(message.content[0].text)
+        except Exception as e:
+            logging.error(f"Anthropic Error: {e}")
+            return {"sentiment_score": 5, "action": "WAIT", "reasoning": str(e)}
+
+    def _analyze_gemini(self, headlines: str, balance: float, snapshot: str, market_mood: str = "Unknown") -> dict:
+        """
+        Original Gemini Logic with Key Rotation
         """
         token_guard.wait_if_needed()
         
-        logging.info(f"AI: Selecting best candidate from snapshot. Balance: {balance} USDT")
-        
-        prompt = (
-            f"--- ACCOUNT BALANCE ---\n{balance} USDT\n\n"
-            f"--- GLOBAL MARKET MOOD ---\n{market_mood}\n\n"
-            f"--- MARKET SNAPSHOT (Prices & Positions) ---\n{snapshot}\n\n"
-            f"--- LATEST NEWS ---\n{headlines}\n\n"
-            "Review the snapshot and news. Which coin from the list is the best candidate to BUY, SELL, or requires management (CLOSE/ADJUST)? "
-            "Return the 'target_symbol' and the determined action. If nothing is worth trading, return target_symbol: NONE."
-        )
+        prompt = self._build_prompt(headlines, balance, snapshot, market_mood)
 
-        try:
-            response = self.client.models.generate_content(
-                model=self.model_id,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=self.system_instruction,
-                    response_mime_type='application/json'
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                # ... existing Gemini call logic ...
+                response = self.client.models.generate_content(
+                    model=self.model_id,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=self.system_instruction,
+                        response_mime_type='application/json'
+                    )
                 )
-            )
-            
-            result = json.loads(response.text)
-            
-            # Extract usage metadata
-            usage = response.usage_metadata
-            usage_info = {
-                "prompt_tokens": usage.prompt_token_count,
-                "candidates_tokens": usage.candidates_token_count,
-                "total_tokens": usage.total_token_count
-            }
-            
-            # If the AI returns a list, take the first element
-            if isinstance(result, list) and len(result) > 0:
-                result = result[0]
-            
-            if not isinstance(result, dict):
-                raise ValueError("AI response is not a valid JSON object")
-            
-            # Attach usage info to the result
-            result['usage'] = usage_info
-            
-            score = result.get('sentiment_score', 0)
-            decision = result.get('action', 'WAIT')
-            reason = result.get('reasoning', 'No reason provided.')
-            
-            logging.info(f"AI Result: [Score: {score}/10] [Action: {decision}]")
-            logging.info(f"AI Usage: {usage_info}")
-            logging.info(f"AI Reasoning: {reason}")
-            
-            return result
-
-        except Exception as e:
-            error_msg = f"AI Analysis failed: {str(e)}"
-            logging.error(error_msg)
-            return {
-                "sentiment_score": 5,
-                "action": "WAIT",
-                "reasoning": error_msg
-            }
+                return json.loads(response.text)
+                
+            except Exception as e:
+                # ... existing error handling ...
+                error_str = str(e)
+                if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+                    logging.error(f"AI: Quota exceeded on attempt {attempt + 1}. Rotating key...")
+                    self._rotate_key()
+                    import time
+                    time.sleep(2)
+                    continue
+                else:
+                    return {"sentiment_score": 5, "action": "WAIT", "reasoning": str(e)}
+        
+        return {"sentiment_score": 5, "action": "WAIT", "reasoning": "AI rotation failed after retries."}
 
 # Initialize AI client
 ai_client = AIAgent()

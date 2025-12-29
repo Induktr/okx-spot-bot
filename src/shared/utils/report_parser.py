@@ -43,7 +43,7 @@ class ReportParser:
                 score = int(score_match.group(1)) if score_match else 0
 
                 # Extract Action
-                action_match = re.search(r"\*\*Action Strategy:\*\* .*? (BUY|SELL|WAIT|CLOSE|ADJUST|ERROR)", entry)
+                action_match = re.search(r"\*\*Action Strategy:\*\* .*? (BUY|SELL|WAIT|CLOSE|ADJUST|ERROR|SLEEP)", entry)
                 action = action_match.group(1) if action_match else "WAIT"
 
                 # Extract Reasoning
@@ -57,7 +57,8 @@ class ReportParser:
                 try:
                     execution_data = json.loads(execution_raw)
                 except:
-                    execution_data = {}
+                    # If not valid JSON, treat as a status message string
+                    execution_data = {"raw_message": execution_raw.strip()}
 
                 parsed_entries.append({
                     "timestamp": timestamp,

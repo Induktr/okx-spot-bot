@@ -9,14 +9,14 @@ class TokenGuard:
     """
     def __init__(self, rpm_limit: int = 15):
         self.rpm_limit = rpm_limit
-        self.interval = 60.0 / rpm_limit
+        # Conservative gap: 40 seconds between calls to avoid Free Tier 'Burst' detection
+        self.interval = 40.0 
         self.last_call_time = 0.0
         self.lock = Lock()
 
     def wait_if_needed(self):
         """
-        Calculates the time since the last call and sleeps if necessary
-        to maintain the RPM limit.
+        Ensures a safe cooldown between AI requests to prevent 429 errors.
         """
         with self.lock:
             current_time = time.time()
@@ -24,9 +24,11 @@ class TokenGuard:
             
             if elapsed < self.interval:
                 sleep_time = self.interval - elapsed
+                import logging
+                logging.info(f"TokenGuard: Cooling down Gemini API for {sleep_time:.1f}s...")
                 time.sleep(sleep_time)
             
             self.last_call_time = time.time()
 
-# Singleton instance for token guard
-token_guard = TokenGuard(rpm_limit=config.GEMINI_RPM_LIMIT)
+# Singleton instance with conservative limits
+token_guard = TokenGuard()

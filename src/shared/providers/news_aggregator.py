@@ -75,5 +75,29 @@ class NewsAggregator:
         return "\n".join(unique_headlines)
 
 
+    # Words that indicate market-moving events
+    TRIGGER_KEYWORDS = [
+        "SEC", "ETF", "Fed", "Rate", "Binance", "Coinbase", "Hack", "Exploit", 
+        "Listing", "Delisting", "Arrest", "Approval", "Lawsuit", "Bankruptcy",
+        "Surge", "Plunge", "ATH", "Crash", "Rally", "Bull", "Bear", "Launch",
+        "Partnership", "Upgrade", "Mainnet", "Protocol", "Regulation", "Ban"
+    ]
+
+    def has_significant_events(self, headlines_text: str) -> bool:
+        """
+        Smart Wake-Up System. 
+        Checks if the collected headlines contain any market-moving keywords.
+        Returns True if AI analysis is required, False if the market is quiet.
+        """
+        if "No news headlines found" in headlines_text:
+            return False
+            
+        # Check for keywords
+        for keyword in self.TRIGGER_KEYWORDS:
+            if keyword.lower() in headlines_text.lower():
+                return True
+        
+        return False
+
 # Initialize aggregator
 news_aggregator = NewsAggregator()
