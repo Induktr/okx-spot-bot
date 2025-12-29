@@ -14,7 +14,13 @@ class Config(BaseSettings):
     # Gemini API
     GEMINI_API_KEY: str = Field(..., env="GEMINI_API_KEY")
     GEMINI_KEYS: list[str] = [] # Loaded from external file if exists
-    GEMINI_MODEL: str = "gemini-3-flash-preview"
+    # Gemini Model Pool (rotates on rate limit errors)
+    GEMINI_MODELS: list[str] = [
+        "gemini-3-flash-preview",           # Primary (fastest)
+        "gemini-robotics-er-1.5-preview", # Your favorite fallback
+        "gemini-2.0-flash-lite",
+        "gemini-2.0-flash",          # Stable backup
+    ]
     GEMINI_RPM_LIMIT: int = 15
     
     # Bot Control

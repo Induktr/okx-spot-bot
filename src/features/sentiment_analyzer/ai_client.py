@@ -11,42 +11,70 @@ class AIAgent:
     Integrates with Google Gemini via the new google-genai SDK.
     """
     def __init__(self):
+        # Key Pool Setup
         self.keys = config.GEMINI_KEYS if config.GEMINI_KEYS else [config.GEMINI_API_KEY]
         self.current_key_index = 0
-        self._init_client()
-        self.model_id = config.GEMINI_MODEL
+        
+        # Model Pool Setup
+        self.current_model_index = 0
+        self.model_id = config.GEMINI_MODELS[self.current_model_index]
+        
+        self.client = None
         self.system_instruction = (
             "Role: You are ASTRA, an advanced autonomous crypto portfolio manager with expertise in both Fundamental and Technical Analysis.\n"
-            "Current Task: Analyze news and market data (Price + RSI + EMA) for a list of coins. Pick the BEST candidate.\n"
+            "Current Task: Analyze news and market data (Price + RSI + EMA + Volume + Funding Rate) for a list of coins. Pick the BEST candidate.\n"
             "Mandates:\n"
-            "1. Selection: Review 'MARKET SNAPSHOT'. Consider News + Technical Indicators (RSI, EMA). \n"
+            "1. Selection: Review 'MARKET SNAPSHOT'. Consider News + Technical Indicators (RSI, EMA, Trend, Volume, Funding). \n"
             "   - RSI Tip: <30 is Oversold (Potential Buy), >70 is Overbought (Potential Sell).\n"
             "   - EMA Tip: Price above EMA(20) suggests an Up-trend.\n"
-            "2. Strategy: Look for CONVERGENCE. If News is BULLISH and RSI is low/neutral, it's a high-confidence signal.\n"
-            "3. Profit/Risk: Aim for 30-35% profit and 20% SL. Adjust based on market context.\n"
+            "   - Funding Tip: High positive funding (>0.05%) = crowded longs (reversal risk). Negative = shorts dominate.\n"
+            "2. Strategy: Look for CONVERGENCE. If News is BULLISH + RSI low + Price > EMA = high-confidence BUY.\n"
+            "3. Profit/Risk: Aim for 30-35% profit and 20% SL. Adjust based on market volatility.\n"
             "4. Money Management: Base 'budget_usdt' on confidence (Sentiment 9-10 -> 25% balance, 6-8 -> 10%). Max 30% per coin.\n"
             "5. Flipping: You can return action 'SELL' to flip a LONG to SHORT (and vice-versa) if trend and news flip.\n"
             "Output Format: JSON only: {\"target_symbol\": \"BTC/USDT:USDT\", \"sentiment_score\": 1-10, \"action\": \"BUY/SELL/WAIT/CLOSE/ADJUST\", \"tp_pct\": 0.35, \"sl_pct\": 0.1, \"leverage\": 5, \"budget_usdt\": 15.0, \"reasoning\": \"Explain convergence of News + Technicals...\"}.\n"
             "If no action is needed for any coin, return \"target_symbol\": \"NONE\" and \"action\": \"WAIT\".\n"
         )
+        self._init_client()
 
     def _init_client(self):
-        # 1. User-Provided Key (Highest Priority)
-        user_key = getattr(config, 'GEMINI_API_KEY', '')
-        if user_key and len(user_key) > 10 and not user_key.startswith("AIzaSyCTX"): 
-            self.client = genai.Client(api_key=user_key)
-            logging.info("AI: Using USER PROVIDED Gemini Key (High Performance)")
-            return
+        """Initialize Gemini client with current key from the pool."""
+        api_key = self.keys[self.current_key_index]
+        self.client = genai.Client(api_key=api_key)
+        logging.info(f"AIAgent initialized: Key #{self.current_key_index + 1}/{len(self.keys)} | Model: {self.model_id}")
 
-        # 2. Internal Pool (Backup/Demo)
-        key = self.keys[self.current_key_index]
-        self.client = genai.Client(api_key=key)
-        logging.info(f"AI: Using Internal Key Pool #{self.current_key_index + 1} (Demo Limits)")
+    def _rotate_model(self):
+        """Rotate to the next model in the pool to bypass rate limits."""
+        old_model = self.model_id
+        self.current_model_index = (self.current_model_index + 1) % len(config.GEMINI_MODELS)
+        self.model_id = config.GEMINI_MODELS[self.current_model_index]
+        logging.warning(f"🔄 Model rotated: {old_model} → {self.model_id}")
+        
+        # If we've cycled back to the first model, it means all models on this key are exhausted
+        if self.current_model_index == 0:
+            logging.warning("⚠️ All models exhausted on current key. Rotating to next key...")
+            return self._rotate_key()
+        return True
 
     def _rotate_key(self):
+        """Rotate to the next API key in the pool and reset to first model."""
+        old_key_idx = self.current_key_index
         self.current_key_index = (self.current_key_index + 1) % len(self.keys)
+        
+        # Reset model to first in pool
+        self.current_model_index = 0
+        self.model_id = config.GEMINI_MODELS[self.current_model_index]
+        
+        # Reinitialize client with new key
         self._init_client()
-        logging.warning(f"AI: API Limit reached. Rotating to Key #{self.current_key_index + 1}")
+        logging.warning(f"🔑 API Key rotated: Key #{old_key_idx + 1} → Key #{self.current_key_index + 1}")
+        
+        # If we cycled back to the first key, ALL combinations are exhausted
+        if self.current_key_index == 0:
+            logging.error("❌ ALL KEYS AND MODELS EXHAUSTED. Need to wait or add more resources.")
+            return False
+        return True
+
 
     def analyze_news(self, headlines: str, balance: float, snapshot: str, market_mood: str = "Unknown") -> dict:
         """
@@ -159,10 +187,9 @@ class AIAgent:
         
         prompt = self._build_prompt(headlines, balance, snapshot, market_mood)
 
-        max_retries = 2
+        max_retries = len(config.GEMINI_MODELS)  # Try all models before giving up
         for attempt in range(max_retries):
             try:
-                # ... existing Gemini call logic ...
                 response = self.client.models.generate_content(
                     model=self.model_id,
                     contents=prompt,
@@ -174,18 +201,22 @@ class AIAgent:
                 return json.loads(response.text)
                 
             except Exception as e:
-                # ... existing error handling ...
                 error_str = str(e)
-                if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
-                    logging.error(f"AI: Quota exceeded on attempt {attempt + 1}. Rotating key...")
-                    self._rotate_key()
+                # Check for rate limit OR server overload errors
+                needs_rotation = any(x in error_str for x in ["429", "RESOURCE_EXHAUSTED", "503", "UNAVAILABLE"])
+                
+                if needs_rotation and attempt < max_retries - 1:
+                    logging.warning(f"🚨 Gemini error on model '{self.model_id}' (attempt {attempt + 1}/{max_retries}): {error_str[:100]}")
+                    self._rotate_model()
                     import time
-                    time.sleep(2)
+                    time.sleep(3)  # Brief cooldown before retry
                     continue
                 else:
-                    return {"sentiment_score": 5, "action": "WAIT", "reasoning": str(e)}
+                    # Final attempt failed or non-retryable error
+                    logging.error(f"❌ Gemini failed after trying all {max_retries} models: {error_str[:150]}")
+                    return {"sentiment_score": 5, "action": "WAIT", "reasoning": f"AI unavailable: {error_str[:100]}"}
         
-        return {"sentiment_score": 5, "action": "WAIT", "reasoning": "AI rotation failed after retries."}
+        return {"sentiment_score": 5, "action": "WAIT", "reasoning": "All Gemini models exhausted."}
 
 # Initialize AI client
 ai_client = AIAgent()
