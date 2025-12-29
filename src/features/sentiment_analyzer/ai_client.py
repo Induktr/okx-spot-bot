@@ -57,14 +57,23 @@ class AIAgent:
         
         # Cloud Override
         if config.USE_CLOUD_AI:
-            return self._analyze_cloud(headlines, balance, snapshot, market_mood)
-
-        if provider == "openai" or provider == "deepseek":
-            return self._analyze_openai_compatible(headlines, balance, snapshot, market_mood)
+            result = self._analyze_cloud(headlines, balance, snapshot, market_mood)
+        elif provider == "openai" or provider == "deepseek":
+            result = self._analyze_openai_compatible(headlines, balance, snapshot, market_mood)
         elif provider == "anthropic":
-            return self._analyze_anthropic(headlines, balance, snapshot, market_mood)
+            result = self._analyze_anthropic(headlines, balance, snapshot, market_mood)
         else:
-            return self._analyze_gemini(headlines, balance, snapshot, market_mood)
+            result = self._analyze_gemini(headlines, balance, snapshot, market_mood)
+            
+        # SAFETY FIX: If AI returns a list (e.g. [ {..} ]), take the first item
+        if isinstance(result, list):
+            if len(result) > 0:
+                logging.warning("AI returned a list. Using first item.")
+                result = result[0]
+            else:
+                return {"sentiment_score": 5, "action": "WAIT", "reasoning": "AI returned empty list"}
+                
+        return result
 
     def _analyze_cloud(self, headlines, balance, snapshot, market_mood):
         # ... Cloud Logic (Same as before) ...

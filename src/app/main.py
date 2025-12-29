@@ -104,6 +104,10 @@ def astra_cycle():
         logging.info("Step 2: AI Selection and Analysis...")
         analysis = ai_client.analyze_news(headlines, total_balance, market_snapshot, mood_context)
         
+        if not isinstance(analysis, dict):
+            logging.error(f"Critical: AI returned malformed data type: {type(analysis)}")
+            return
+
         symbol = analysis.get('target_symbol', 'NONE')
         decision = analysis.get('action', 'WAIT').upper()
 
@@ -118,34 +122,55 @@ def astra_cycle():
             try:
                 logging.info(f"[{eid.upper()}] Applying AI decision for {symbol}...")
                 
-                # Check for existing positions to handle FLIP
+                # Check for existing positions
                 symbol_positions = t.get_positions(target_symbol=symbol)
-                if symbol_positions:
-                    current_side = symbol_positions[0]['side'].upper() # 'LONG' or 'SHORT'
-                    target_side = "LONG" if decision == "BUY" else "SHORT"
+                
+                if decision == "CLOSE":
+                    if symbol_positions:
+                        logging.info(f"[{eid.upper()}] CLOSING position for {symbol} per AI request.")
+                        res = t.close_position(symbol_positions[0])
+                        execution_results.append(f"{eid.upper()}: Closed {symbol} ({res})")
+                    else:
+                        msg = f"{eid.upper()}: Cannot CLOSE {symbol} - No active position found."
+                        logging.warning(msg)
+                        execution_results.append(msg)
+
+                elif decision in ["BUY", "SELL"]:
+                    # Handle FLIP (Reverse position)
+                    if symbol_positions:
+                        current_side = symbol_positions[0]['side'].upper() # 'LONG' or 'SHORT'
+                        target_side = "LONG" if decision == "BUY" else "SHORT"
+                        
+                        if current_side != target_side:
+                            logging.info(f"[{eid.upper()}] FLIPPING detected. Closing {current_side} before opening {target_side}...")
+                            t.close_position(symbol_positions[0])
+                            time.sleep(2) # Wait for settlement
+
+                    # Execute Entry
+                    lev = min(int(analysis.get('leverage', 3)), 10)
+                    res = t.execute_order(symbol, decision, float(analysis.get('budget_usdt', 10)), leverage=lev)
                     
-                    if decision in ["BUY", "SELL"] and current_side != target_side:
-                        logging.info(f"[{eid.upper()}] FLIPPING detected. Closing {current_side} before opening {target_side}...")
-                        t.close_position(symbol_positions[0])
-                        time.sleep(2) # Wait for settlement
+                    # Immediate Protection Sync
+                    time.sleep(2)
+                    new_pos = t.get_positions(target_symbol=symbol)
+                    if new_pos:
+                        sync_status = t.sync_sl_tp(
+                            new_pos[0], 
+                            tp_pct=float(analysis.get('tp_pct', 0.3)), 
+                            sl_pct=float(analysis.get('sl_pct', 0.2))
+                        )
+                        execution_results.append(f"{eid.upper()}: {res} ({sync_status})")
+                    else:
+                        execution_results.append(f"{eid.upper()}: {res}")
                 
-                # Execute new order
-                # Execute new order
-                lev = min(int(analysis.get('leverage', 3)), 10)
-                res = t.execute_order(symbol, decision, float(analysis.get('budget_usdt', 10)), leverage=lev)
-                
-                # 4. Immediate Protection Sync
-                time.sleep(2)
-                new_pos = t.get_positions(target_symbol=symbol)
-                if new_pos:
-                    sync_status = t.sync_sl_tp(
-                        new_pos[0], 
-                        tp_pct=float(analysis.get('tp_pct', 0.3)), 
-                        sl_pct=float(analysis.get('sl_pct', 0.2))
-                    )
-                    execution_results.append(f"{eid.upper()}: {res} ({sync_status})")
-                else:
-                    execution_results.append(f"{eid.upper()}: {res}")
+                elif decision == "ADJUST":
+                     execution_results.append(f"{eid.upper()}: SL/TP Updated")
+                     if symbol_positions:
+                         t.sync_sl_tp(
+                            symbol_positions[0], 
+                            float(analysis.get('tp_pct', 0.3)), 
+                            float(analysis.get('sl_pct', 0.2))
+                        )
             except Exception as exchange_err:
                 error_log = f"{eid.upper()} Failed: {str(exchange_err)}"
                 logging.error(error_log)
