@@ -25,6 +25,7 @@ class Config(BaseSettings):
     
     # Bot Control
     BOT_ACTIVE: bool = True
+    FORCE_CYCLE: bool = False # Internal flag for immediate wake-up
 
     # AI Provider Selection: 'gemini', 'openai', 'deepseek', 'anthropic'
     AI_PROVIDER: str = "gemini"
@@ -60,6 +61,23 @@ class Config(BaseSettings):
     BYBIT_API_KEY: str = Field("", env="BYBIT_API_KEY")
     BYBIT_SECRET: str = Field("", env="BYBIT_SECRET")
 
+    # Feature 5: Telegram Command Center
+    TELEGRAM_TOKEN: str = Field("", env="TELEGRAM_TOKEN")
+    TELEGRAM_CHAT_ID: str = Field("", env="TELEGRAM_CHAT_ID")
+    TG_SIGNALS_ACTIVE: bool = True
+
+    # Feature 3: Adaptive Risk Engine
+    MIN_LEVERAGE: int = 1
+    MAX_LEVERAGE: int = 10
+    VOLATILITY_THRESHOLD: float = 0.05 # 5% move in 1h triggers risk reduction
+
+    # Feature 6: Black Swan Insurance
+    EMERGENCY_WORDS: list[str] = ["hack", "exploit", "sec ban", "bankruptcy", "scam", "depeg", "halt", "insolvent"]
+    VOLATILITY_PANIC_THRESHOLD: float = 0.15 # 15% drop triggers emergency exit
+
+    # Feature 2: On-Chain Sentinel
+    WHALE_MOVE_THRESHOLD: float = 10000000 # $10M+ move triggers alert/caution
+
     # List of active exchange IDs (e.g., ['okx', 'binance', 'bybit'])
     ACTIVE_EXCHANGES: list[str] = ["okx"]
     SANDBOX_MODES: dict[str, bool] = {"okx": True, "binance": False, "bybit": False}
@@ -82,6 +100,7 @@ class Config(BaseSettings):
                 self.SANDBOX_MODES = data.get("sandbox_modes", {"okx": True, "binance": False, "bybit": False})
                 self.GEMINI_API_KEY = data.get("gemini_key", self.GEMINI_API_KEY)
                 self.AI_PROVIDER = data.get("ai_provider", "gemini")
+                self.BOT_ACTIVE = data.get("bot_active", True)
                 self.OPENAI_API_KEY = data.get("openai_key", self.OPENAI_API_KEY)
                 self.DEEPSEEK_API_KEY = data.get("deepseek_key", self.DEEPSEEK_API_KEY)
                 self.ANTHROPIC_API_KEY = data.get("anthropic_key", self.ANTHROPIC_API_KEY)
@@ -93,6 +112,12 @@ class Config(BaseSettings):
                 self.BINANCE_SECRET = data.get("binance_secret", self.BINANCE_SECRET)
                 self.BYBIT_API_KEY = data.get("bybit_key", self.BYBIT_API_KEY)
                 self.BYBIT_SECRET = data.get("bybit_secret", self.BYBIT_SECRET)
+                
+                # Pro Features
+                self.TELEGRAM_TOKEN = data.get("tg_token", self.TELEGRAM_TOKEN)
+                self.TELEGRAM_CHAT_ID = data.get("tg_chat_id", self.TELEGRAM_CHAT_ID)
+                self.MAX_LEVERAGE = data.get("max_leverage", 10)
+                self.TG_SIGNALS_ACTIVE = data.get("tg_signals_active", True)
         except Exception:
             self.ACTIVE_EXCHANGES = ["okx"]
             self.SANDBOX_MODES = {"okx": True, "binance": False, "bybit": False}
@@ -106,6 +131,7 @@ class Config(BaseSettings):
                 "sandbox_modes": self.SANDBOX_MODES,
                 "gemini_key": self.GEMINI_API_KEY,
                 "ai_provider": self.AI_PROVIDER,
+                "bot_active": self.BOT_ACTIVE,
                 "openai_key": self.OPENAI_API_KEY,
                 "deepseek_key": self.DEEPSEEK_API_KEY,
                 "anthropic_key": self.ANTHROPIC_API_KEY,
@@ -115,7 +141,11 @@ class Config(BaseSettings):
                 "binance_key": self.BINANCE_API_KEY,
                 "binance_secret": self.BINANCE_SECRET,
                 "bybit_key": self.BYBIT_API_KEY,
-                "bybit_secret": self.BYBIT_SECRET
+                "bybit_secret": self.BYBIT_SECRET,
+                "tg_token": self.TELEGRAM_TOKEN,
+                "tg_chat_id": self.TELEGRAM_CHAT_ID,
+                "max_leverage": self.MAX_LEVERAGE,
+                "tg_signals_active": self.TG_SIGNALS_ACTIVE
             }, f, indent=4)
     
     # Trading Settings

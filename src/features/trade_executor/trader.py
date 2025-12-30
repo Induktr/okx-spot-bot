@@ -41,7 +41,17 @@ class Trader:
             
             # Special header for OKX Demo
             if exchange_id == 'okx':
-                self.exchange.headers = {'x-simulated-trading': '1'}
+                self.exchange.headers['x-simulated-trading'] = '1'
+                self.exchange.options['defaultType'] = 'swap'
+                
+                # Detect Position Mode (Net vs Long/Short)
+                try:
+                    acc_config = self.exchange.private_get_account_config()
+                    self.pos_mode = acc_config.get('data', [{}])[0].get('posMode', 'net_mode')
+                    logging.info(f"Trader: OKX Account Mode detected: {self.pos_mode}")
+                except Exception as e:
+                    logging.warning(f"Trader: Could not detect OKX posMode: {e}")
+                    self.pos_mode = 'long_short_mode' # Default to hedge mode as it's safer for our params if we guess right
 
         # Load Markets once
         try:
@@ -109,10 +119,13 @@ class Trader:
 
     def get_positions(self, target_symbol=None):
         try:
+            # fetch_positions can return closed positions (0 contracts) on some exchanges
             positions = self.exchange.fetch_positions()
+            active_positions = [p for p in positions if float(p.get('contracts', 0)) > 0]
+            
             if target_symbol:
-                return [p for p in positions if p['symbol'] == target_symbol]
-            return positions
+                return [p for p in active_positions if p['symbol'] == target_symbol]
+            return active_positions
         except Exception as e:
             logging.error(f"[{self.exchange_id}] Positions error: {e}")
             return []
@@ -124,6 +137,47 @@ class Trader:
             funding = self.exchange.fetch_funding_rate(symbol)
             return float(funding.get('fundingRate', 0.0))
         except Exception as e:
+            return 0.0
+
+    # --- Feature 3: Adaptive Risk Engine ---
+    def calculate_adaptive_leverage(self, symbol, base_leverage):
+        """
+        Dynamically adjusts leverage based on market volatility and bot performance.
+        Reduces leverage if a Black Swan event or high volatility is detected.
+        """
+        try:
+            ohlcv = self.get_ohlcv(symbol, timeframe='1h', limit=2)
+            if len(ohlcv) < 2: return base_leverage
+            
+            # Simple 1h volatility check
+            close_prev = ohlcv[0][4]
+            close_curr = ohlcv[1][4]
+            move_pct = abs(close_curr - close_prev) / close_prev
+            
+            adjusted = base_leverage
+            if move_pct > config.VOLATILITY_THRESHOLD:
+                # High volatility: Safety first, cut leverage in half
+                adjusted = max(config.MIN_LEVERAGE, int(base_leverage * 0.5))
+                logging.warning(f"[{self.exchange_id}] High Volatility Detected ({move_pct:.2%}). Adaptive Risk scaling leverage {base_leverage}x -> {adjusted}x")
+            
+            return min(adjusted, config.MAX_LEVERAGE)
+        except:
+            return base_leverage
+
+    # --- Feature 6: Black Swan Insurance ---
+    def emergency_liquidate_all(self):
+        """Force closes all positions immediately across this exchange."""
+        try:
+            positions = self.get_positions()
+            results = []
+            for p in positions:
+                logging.warning(f"🚨 EMERGENCY LIQUIDATION: Closing {p['symbol']}")
+                res = self.close_position(p)
+                results.append(res)
+            return results
+        except Exception as e:
+            logging.error(f"Critical: Emergency Liquidation Failed: {e}")
+            return []
             # logging.debug(f"[{self.exchange_id}] Funding Rate not available: {e}") 
             return 0.0
 
@@ -134,14 +188,47 @@ class Trader:
 
         try:
             self.exchange.load_markets()
+            
+            # Robust Symbol Check: If AI returns just 'BTC' or 'BTCUSDT'
+            if symbol not in self.exchange.markets:
+                found = False
+                # Try common formats and case-insensitive search
+                search_term = symbol.split('/')[0].upper()
+                alternatives = [f"{search_term}/USDT:USDT", f"{search_term}/USDT", search_term]
+                
+                # Broad search in markets
+                for m_id, m_info in self.exchange.markets.items():
+                    if search_term in m_id.upper() and (':USDT' in m_id or '-SWAP' in m_id):
+                        logging.info(f"[{self.exchange_id}] Deep normalizing symbol: {symbol} -> {m_id}")
+                        symbol = m_id
+                        found = True
+                        break
+                
+                if not found:
+                    for alt in alternatives:
+                        if alt in self.exchange.markets:
+                            logging.info(f"[{self.exchange_id}] Normalizing symbol: {symbol} -> {alt}")
+                            symbol = alt
+                            found = True
+                            break
+                            
+                if not found:
+                    return f"Symbol Error: {symbol} not found on {self.exchange_id}. (Note: Rebranded assets like FET/RNDR might be ASI/RENDER)"
+
             market = self.exchange.market(symbol)
             current_price = self.get_ticker(symbol)
             if not current_price: return "Price Error"
 
-            # Set Leverage
+            # Set Leverage (Adaptive)
+            leverage = self.calculate_adaptive_leverage(symbol, leverage)
             try:
                 self.exchange.set_leverage(leverage, symbol)
             except: pass
+
+            # PRE-FLIGHT CHECK: Margin Check
+            balance = self.get_balance()
+            if balance < budget_usdt:
+                return f"Margin Error: Required {budget_usdt} USDT but only have {balance:.2f} USDT available."
 
             # Calculate Contracts (sz)
             # Formula: (budget * leverage) / (contract_size * price)
@@ -149,20 +236,52 @@ class Trader:
             total_nominal_value = budget_usdt * leverage
             raw_sz = total_nominal_value / (contract_size * current_price)
             
-            # Floor to minimum lot size
+            # Floor to minimum lot size and apply exchange precision
             min_sz = float(market['limits']['amount']['min'] or 1)
             sz = max(min_sz, round(raw_sz / min_sz) * min_sz)
-
-            logging.info(f"[{self.exchange_id}] Executing {side} on {symbol}. Budget ${budget_usdt} (x{leverage}) -> {sz} contracts.")
             
+            # Use CCXT's amount_to_precision to satisfy exchange requirements
+            sz_str = self.exchange.amount_to_precision(symbol, sz)
+            sz = float(sz_str)
+
+            logging.info(f"[{self.exchange_id}] Executing {side} on {symbol}. Budget ${budget_usdt} (x{leverage}) -> {sz} ({sz_str}) contracts.")
+            
+            # OKX Specific: Explicitly set tdMode and posSide if in Hedge mode
+            order_params = {}
+            if self.exchange_id == 'okx':
+                order_params = {
+                    'tdMode': 'cross'
+                }
+                # Handle Hedge Mode (long_short_mode)
+                if self.pos_mode == 'long_short_mode':
+                    # When opening a new position, we must specify which side we are opening
+                    order_params['posSide'] = 'long' if side.upper() == "BUY" else "short"
+
             if side == "BUY":
-                return self.exchange.create_market_buy_order(symbol, sz)
+                res = self.exchange.create_market_buy_order(symbol, sz, params=order_params)
             elif side == "SELL":
-                return self.exchange.create_market_sell_order(symbol, sz)
+                res = self.exchange.create_market_sell_order(symbol, sz, params=order_params)
+                
+            return self._parse_execution_result(res)
                 
         except Exception as e:
-            logging.error(f"[{self.exchange_id}] Order Error: {e}")
-            return str(e)
+            return self._parse_execution_result(str(e))
+
+    def _parse_execution_result(self, res):
+        """Converts raw exchange responses into crystalline human-readable summaries."""
+        res_str = str(res)
+        
+        # OKX Error Code Mapping
+        if "51008" in res_str: return "FAILED: Insufficient USDT Margin (Account Empty)"
+        if "51000" in res_str: return "FAILED: posSide Parameter Error (Hedge Mode Conflict)"
+        if "51119" in res_str: return "FAILED: Leverage too high for position size"
+        if "51001" in res_str: return "FAILED: Instrument not tradable (Check Symbol)"
+        
+        # Success check
+        if isinstance(res, dict) and (res.get('id') or res.get('clOrdId') or res.get('status') == 'open'):
+            return f"SUCCESS: Order #{res.get('id', 'N/A')} filled on {self.exchange_id.upper()}"
+            
+        return f"SYSTEM LOG: {res_str[:150]}..." if len(res_str) > 150 else f"SYSTEM LOG: {res_str}"
 
 
     def close_position(self, pos):
@@ -170,8 +289,25 @@ class Trader:
             symbol = pos['symbol']
             side = 'sell' if pos['side'] == 'long' else 'buy'
             amount = pos['contracts']
-            logging.info(f"[{self.exchange_id}] Closing {symbol} {pos['side']}")
-            return self.exchange.create_market_order(symbol, side, amount, {'reduceOnly': True})
+            
+            # OKX requires posSide and tdMode even for closing in specific account modes
+            params = {
+                'reduceOnly': True
+            }
+            
+            if self.exchange_id == 'okx':
+                params['tdMode'] = 'cross'
+                if self.pos_mode == 'long_short_mode':
+                    # For closing, posSide must match the position's side (long or short)
+                    # CCXT position['side'] is usually 'long' or 'short'
+                    pside = pos.get('side', 'long').lower()
+                    if pside not in ['long', 'short']:
+                        # Fallback if CCXT uses buy/sell for position side
+                        pside = 'long' if pside == 'buy' else 'short'
+                    params['posSide'] = pside
+                    
+            logging.info(f"[{self.exchange_id}] Closing {symbol} {pos['side']} | Params: {params}")
+            return self.exchange.create_market_order(symbol, side, amount, params)
         except Exception as e:
             logging.error(f"[{self.exchange_id}] Close Error: {e}")
             return str(e)
@@ -200,7 +336,7 @@ class Trader:
 
         try:
             symbol = pos['symbol']
-            side = pos['side']
+            side = pos['side'] # 'long' or 'short'
             entry_price = float(pos['entryPrice'])
             contracts = pos['contracts']
 
@@ -208,30 +344,46 @@ class Trader:
 
             tp_price = entry_price * (1 + tp_pct) if side == 'long' else entry_price * (1 - tp_pct)
             sl_price = entry_price * (1 - sl_pct) if side == 'long' else entry_price * (1 + sl_pct)
+            
+            # Format prices according to exchange precision
+            tp_str = self.exchange.price_to_precision(symbol, tp_price)
+            sl_str = self.exchange.price_to_precision(symbol, sl_price)
 
             params = {
                 'tdMode': 'cross',
                 'ordType': 'conditional',
                 'reduceOnly': True
             }
+            
+            # Critical FIX for Hedge Mode
+            if self.pos_mode == 'long_short_mode':
+                params['posSide'] = side # Must match the position we are protecting
 
-            logging.info(f"[{self.exchange_id}] Syncing TP/SL for {symbol}. SL: {sl_price:.2f}")
+            logging.info(f"[{self.exchange_id}] Syncing TP/SL for {symbol} ({side}). TP: {tp_str}, SL: {sl_str}")
 
-            # Take Profit
+            # Take Profit (Market-Conditional)
+            # OKX via CCXT uses tpTriggerPx and tpOrdPx
             self.exchange.create_order(
                 symbol=symbol, type='market', side='sell' if side == 'long' else 'buy',
-                amount=contracts, params={**params, 'tpTriggerPx': f"{tp_price:.2f}", 'tpOrdPx': '-1'}
+                amount=contracts, params={
+                    **params, 
+                    'tpTriggerPx': tp_str, 
+                    'tpOrdPx': '-1' # -1 means market order on trigger
+                }
             )
-            # Stop Loss
+            # Stop Loss (Market-Conditional)
             self.exchange.create_order(
                 symbol=symbol, type='market', side='sell' if side == 'long' else 'buy',
-                amount=contracts, params={**params, 'slTriggerPx': f"{sl_price:.2f}", 'slOrdPx': '-1'}
+                amount=contracts, params={
+                    **params, 
+                    'slTriggerPx': sl_str, 
+                    'slOrdPx': '-1'
+                }
             )
-            return "Synced"
+            return f"Synced (SL:{sl_str})"
         except Exception as e:
             logging.error(f"[{self.exchange_id}] TP/SL Error: {e}")
             return str(e)
-
 # Initialize traders collection
 traders = {}
 

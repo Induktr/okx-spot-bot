@@ -7,6 +7,10 @@ from src.features.sentiment_analyzer.ai_client import ai_client
 from src.features.trade_executor.trader import trader, traders
 from src.shared.utils.analysis import tech_analysis
 from src.shared.utils.logger import scribe
+from src.shared.utils.portfolio_tracker import portfolio_tracker
+from src.shared.providers.telegram_provider import telegram_bot
+from src.shared.utils.report_parser import report_parser
+import datetime
 
 # Configure internal logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -16,15 +20,15 @@ def astra_cycle():
     The opportunistic cycle of A.S.T.R.A.
     AI reviews ALL symbols (News + Technicals) and picks the best one.
     """
+    if not config.BOT_ACTIVE:
+        logging.info("⏸️ A.S.T.R.A. is in Sleep Mode. Cycle skipped.")
+        return
+
     if not config.SYMBOLS:
         logging.warning("No symbols configured in SYMBOLS list.")
         return
 
     logging.info(f"--- Starting A.S.T.R.A. Selective Cycle ---")
-    
-    if not config.BOT_ACTIVE:
-        logging.info("⏸️ Bot is PAUSED by user request. Skipping cycle.")
-        return
 
     try:
         # 0. Global Sensors: News & Sentiment
@@ -43,14 +47,30 @@ def astra_cycle():
             }, "News Filter: No significant events detected.")
             return
         
+        # --- Feature 6: Black Swan Insurance ---
+        raw_news_text = " ".join(headlines).lower()
+        if any(word in raw_news_text for word in config.EMERGENCY_WORDS):
+            logging.critical("🚨 BLACK SWAN EVENT DETECTED IN NEWS STREAM!")
+            telegram_bot.send_emergency_alert("MARKET PANIC / EMERGENCY", "Critical keywords detected in global news stream. System shielding active.")
+            # Auto-liquidate for safety
+            for eid, t in traders.items():
+                t.emergency_liquidate_all()
+            scribe.log_cycle({"action": "EMERGENCY_EXIT"}, "System wide liquidation triggered by Black Swan detection.")
+            return
+            
         # 1. Collect Market Snapshot (Across ALL Exchanges)
-        logging.info(f"Step 1: Building combined snapshot for {len(traders)} exchanges...")
         total_balance = 0
         snapshot_lines = []
         
+        # Aggregate balances first for tracking
+        for eid, t in traders.items():
+            total_balance += t.get_balance()
+        
+        # Record for Analytics
+        portfolio_tracker.record_snapshot(total_balance)
+        
         for eid, t in traders.items():
             bal = t.get_balance()
-            total_balance += bal
             all_positions = t.get_positions()
             
             for sim in config.SYMBOLS:
@@ -77,7 +97,14 @@ def astra_cycle():
                 pos_str = "No Position"
                 if pos:
                     p = pos[0]
-                    pos_str = f"In {p['side']} (PnL: {p.get('unrealizedPnl', 0)} USDT)"
+                    # Calculate Fee Awareness: Account for 0.05% taker fee on both open and close
+                    # Estimated Fee = Nominal Value * 0.0005
+                    nominal_val = float(p.get('notional', 0) or 0)
+                    upnl = float(p.get('unrealizedPnl', 0) or 0)
+                    est_total_fees = abs(nominal_val) * 0.0005 * 2 # Entry + Exit
+                    net_pnl = upnl - est_total_fees
+                    
+                    pos_str = f"In {p['side']} (Net PnL: {net_pnl:.2f} USDT | Upnl: {upnl:.2f} | Fees: {est_total_fees:.2f})"
                 
                 # Technical Analysis Injection
                 ta_str = "| TA: N/A"
@@ -96,10 +123,21 @@ def astra_cycle():
                 except Exception as ta_err:
                     logging.warning(f"TA Error for {sim}: {ta_err}")
 
+                # --- Feature 2: On-Chain Sentinel (Simulation) ---
+                # In a production environment, this would call Whale Alert API
+                whale_move = 0 # Placeholder for actual live data
+                if whale_move > config.WHALE_MOVE_THRESHOLD:
+                    logging.info(f"[{eid.upper()}] Whale Alert! Large capital movement detected. Adjusting risk.")
+                
                 snapshot_lines.append(f"- [{eid.upper()}] {sim}: Price {price} | Vol: {volume_24h:.1f}M | Fund: {funding_rate:.4f}% {ta_str} | Status: {pos_str}")
         
         market_snapshot = "\n".join(snapshot_lines)
         
+        # INTERRUPT CHECK: Before AI Analysis
+        if not config.BOT_ACTIVE: 
+            logging.info("🛑 Emergency Stop: Bot paused before AI Analysis.")
+            return
+
         # 2. Brain: AI Analysis
         logging.info("Step 2: AI Selection and Analysis...")
         analysis = ai_client.analyze_news(headlines, total_balance, market_snapshot, mood_context)
@@ -110,10 +148,26 @@ def astra_cycle():
 
         symbol = analysis.get('target_symbol', 'NONE')
         decision = analysis.get('action', 'WAIT').upper()
+        confidence = float(analysis.get('sentiment_score', 0))
 
         if symbol == "NONE" or decision == "WAIT":
             logging.info("AI: No action chosen.")
             scribe.log_cycle(analysis, "Cycle complete: No action.")
+            return
+
+        if decision in ["BUY", "SELL"] and confidence < 3:
+            msg = f"AI Confidence ({confidence}/10) is not high enough for a new trade (Need >= 7). Standing by."
+            logging.info(msg)
+            scribe.log_cycle(analysis, f"Cycle complete: {msg}")
+            return
+
+        # --- Feature 5: Telegram Signal Hub ---
+        if decision in ["BUY", "SELL"]:
+            telegram_bot.send_trade_signal(symbol, decision, analysis.get('reasoning', 'N/A'), confidence)
+
+        # INTERRUPT CHECK: Before Trading Execution
+        if not config.BOT_ACTIVE: 
+            logging.info("🛑 Emergency Stop: Bot paused before Execution.")
             return
 
         # 3. Hands: Execute Strategy on ALL active exchanges
@@ -206,12 +260,18 @@ def main():
     # Run once at startup
     astra_cycle()
     
-    # Schedule every 5 minutes
-    schedule.every(5).minutes.do(astra_cycle)
+    # Schedule every 60 minutes
+    schedule.every(60).minutes.do(astra_cycle)
     
-    logging.info("Scheduler active: Selecting the best coin to trade every 5 minutes.")
+    logging.info("Scheduler active: Selecting the best coin to trade every 60 minutes.")
     
     while True:
+        # Check if UI requested an immediate cycle (Manual Resume)
+        if config.FORCE_CYCLE:
+            logging.info("⚡ Immediate Cycle triggered by User (UI Force)")
+            config.FORCE_CYCLE = False # Reset flag
+            astra_cycle()
+            
         schedule.run_pending()
         time.sleep(1)
 

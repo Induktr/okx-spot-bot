@@ -213,6 +213,11 @@ class AIAgent:
                     continue
                 else:
                     # Final attempt failed or non-retryable error
+                    if "429" in error_str:
+                        logging.critical("CRITICAL: Gemini API returned 429 (Rate Limit). A.S.T.R.A. will sleep for 60 minutes.")
+                        import time
+                        time.sleep(3600) # Sleep 60 minutes
+                    
                     logging.error(f"❌ Gemini failed after trying all {max_retries} models: {error_str[:150]}")
                     return {"sentiment_score": 5, "action": "WAIT", "reasoning": f"AI unavailable: {error_str[:100]}"}
         

@@ -3,13 +3,19 @@
         "okx"
     ],
     "sandbox_modes": {
-        "okx": false,
+        "okx": true,
         "binance": true,
         "bybit": false
     },
-    "okx_key": "3366564b-704c-4767-b478-c004ad8e62df",
-    "okx_secret": "E602A88100E37C622EB2BD72ED887000",
-    "okx_pass": "=123-=,cmsasdA2zx",
+    "gemini_key": "AIzaSyAhXJHCu7TFMKUqjoU8v4gQCTs-eHDIDKg",
+    "ai_provider": "gemini",
+    "bot_active": true,
+    "openai_key": "",
+    "deepseek_key": "",
+    "anthropic_key": "",
+    "okx_key": "0a6485a9-ff31-4584-adb0-a3d3952b58ed",
+    "okx_secret": "C0CDF9D554D28614C062382688AEFC05",
+    "okx_pass": "J029!_W+=s34?!z!(@9s",
     "binance_key": "6E4lEcIWRJaOWHM8OYdPtqPTneA9rdsmEMPRM1IA2KKjf58weJlqpPV4q3aXqF0H",
     "binance_secret": "dG1bAVbinMn6OV6BQkZ2FYDh1YnaWKfj61BCNQ5DWeMsW1MOx89A6y4BaLi5dhc6",
     "bybit_key": "",
