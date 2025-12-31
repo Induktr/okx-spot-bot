@@ -198,8 +198,24 @@ def astra_cycle():
                         if current_side != target_side:
                             logging.info(f"[{eid.upper()}] FLIPPING detected. Closing {current_side} before opening {target_side}...")
                             close_res = t.close_position(symbol_positions[0])
+                            
+                            # If close_position returned a string (error), abord flip
+                            if isinstance(close_res, str) and ("Error" in close_res or "failed" in close_res.lower()):
+                                error_msg = f"{eid.upper()}: Flip Failed (Could not close {current_side}): {close_res}"
+                                logging.error(error_msg)
+                                execution_results.append(error_msg)
+                                continue
+
                             logging.info(f"[{eid.upper()}] Close result for flip: {close_res}")
-                            time.sleep(3) # Increased sleep for settlement safety
+                            time.sleep(5) # Increased sleep for settlement safety and exchange sync
+                            
+                            # Double check position is closed
+                            verify_pos = t.get_positions(target_symbol=symbol)
+                            if verify_pos:
+                                error_msg = f"{eid.upper()}: Flip Failed (Position {symbol} still active after close attempt)"
+                                logging.error(error_msg)
+                                execution_results.append(error_msg)
+                                continue
 
                     # AI-Driven Money Management
                     ai_lev = int(analysis.get('leverage', 3))

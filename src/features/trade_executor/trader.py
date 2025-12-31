@@ -40,19 +40,20 @@ class Trader:
                 self.exchange.set_sandbox_mode(True)
                 logging.info(f"Trader: {exchange_id} Demo Mode Active")
             
-            # Special header for OKX Demo
-            if exchange_id == 'okx':
+        if exchange_id == 'okx':
+            self.exchange.options['defaultType'] = 'swap'
+            if is_demo:
                 self.exchange.headers['x-simulated-trading'] = '1'
-                self.exchange.options['defaultType'] = 'swap'
-                
-                # Detect Position Mode (Net vs Long/Short)
-                try:
-                    acc_config = self.exchange.private_get_account_config()
-                    self.pos_mode = acc_config.get('data', [{}])[0].get('posMode', 'net_mode')
-                    logging.info(f"Trader: OKX Account Mode detected: {self.pos_mode}")
-                except Exception as e:
-                    logging.warning(f"Trader: Could not detect OKX posMode: {e}")
-                    self.pos_mode = 'long_short_mode' # Default to hedge mode as it's safer for our params if we guess right
+            
+            # Detect Position Mode (Net vs Long/Short) - Required for both Live and Demo
+            try:
+                acc_config = self.exchange.private_get_account_config()
+                self.pos_mode = acc_config.get('data', [{}])[0].get('posMode', 'net_mode')
+                logging.info(f"Trader: OKX Account Mode detected: {self.pos_mode}")
+            except Exception as e:
+                logging.warning(f"Trader: Could not detect OKX posMode: {e}. Defaulting to safest.")
+                # If we have existing positions, we can try to guess or use a safer default
+                self.pos_mode = 'long_short_mode' 
 
         # Load Markets once
         try:
@@ -92,6 +93,21 @@ class Trader:
             return total_equity
         except Exception as e:
             logging.error(f"[{self.exchange_id}] Balance error: {e}")
+            return 0.0
+
+    def get_free_balance(self):
+        """Fetches available (free) margin in stablecoins (USDT/USDC/BUSD)."""
+        try:
+            balance = self.exchange.fetch_balance()
+            free_margin = 0.0
+            for coin in ['USDT', 'USDC', 'BUSD']:
+                asset = balance.get(coin, {})
+                # For OKX/Binance, 'free' is what we can use for new orders
+                val = asset.get('free', 0.0)
+                free_margin += float(val or 0)
+            return free_margin
+        except Exception as e:
+            logging.error(f"[{self.exchange_id}] Free balance error: {e}")
             return 0.0
 
     def get_ticker(self, symbol: str) -> Optional[float]:
@@ -226,10 +242,10 @@ class Trader:
                 self.exchange.set_leverage(leverage, symbol)
             except: pass
 
-            # PRE-FLIGHT CHECK: Margin Check
-            balance = self.get_balance()
-            if balance < budget_usdt:
-                return f"Margin Error: Required {budget_usdt} USDT but only have {balance:.2f} USDT available."
+            # PRE-FLIGHT CHECK: Free Margin Check
+            free_balance = self.get_free_balance()
+            if free_balance < budget_usdt:
+                return f"Margin Error: Required {budget_usdt} USDT but only have {free_balance:.2f} USDT free available. (Total Equity: {self.get_balance():.2f})"
 
             # Calculate Contracts (sz)
             # Formula: (budget * leverage) / (contract_size * price)
