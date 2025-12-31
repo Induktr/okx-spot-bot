@@ -1118,7 +1118,12 @@
                 const res = await fetch('/api/bot_status');
                 const data = await res.json();
                 updatePowerUI(data.active);
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                if(e instanceof TypeError) {
+                    console.error("UI: Failed to fetch bot status: ", e);
+                    alert("Critical: Failed to connect to A.S.T.R.A. backend!");
+                }
+            }
         }
 
         async function toggleBot() {

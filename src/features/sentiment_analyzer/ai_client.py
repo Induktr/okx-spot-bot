@@ -12,7 +12,11 @@ class AIAgent:
     """
     def __init__(self):
         # Key Pool Setup
-        self.keys = config.GEMINI_KEYS if config.GEMINI_KEYS else [config.GEMINI_API_KEY]
+        self.keys = config.GEMINI_KEYS if config.GEMINI_KEYS else ([config.GEMINI_API_KEY] if config.GEMINI_API_KEY else [])
+        
+        if not self.keys:
+            logging.critical("❌ NO GEMINI API KEYS FOUND! AI Analysis will fail. Please check your .env or admin_keys.json")
+        
         self.current_key_index = 0
         
         # Model Pool Setup

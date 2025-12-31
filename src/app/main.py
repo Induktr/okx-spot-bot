@@ -197,8 +197,9 @@ def astra_cycle():
                         
                         if current_side != target_side:
                             logging.info(f"[{eid.upper()}] FLIPPING detected. Closing {current_side} before opening {target_side}...")
-                            t.close_position(symbol_positions[0])
-                            time.sleep(2) # Wait for settlement
+                            close_res = t.close_position(symbol_positions[0])
+                            logging.info(f"[{eid.upper()}] Close result for flip: {close_res}")
+                            time.sleep(3) # Increased sleep for settlement safety
 
                     # Execute Entry
                     lev = min(int(analysis.get('leverage', 3)), 10)

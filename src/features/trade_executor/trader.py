@@ -298,19 +298,20 @@ class Trader:
             if self.exchange_id == 'okx':
                 params['tdMode'] = 'cross'
                 if self.pos_mode == 'long_short_mode':
-                    # For closing, posSide must match the position's side (long or short)
-                    # CCXT position['side'] is usually 'long' or 'short'
-                    pside = pos.get('side', 'long').lower()
-                    if pside not in ['long', 'short']:
-                        # Fallback if CCXT uses buy/sell for position side
-                        pside = 'long' if pside == 'buy' else 'short'
-                    params['posSide'] = pside
+                    # CRITICAL: For OKX Hedge Mode, posSide MUST be provided and must match 
+                    # the side of the position being closed (long or short).
+                    # We normalize this to ensure it's always lowercase 'long' or 'short'.
+                    raw_side = pos.get('side', 'long')
+                    params['posSide'] = 'long' if 'long' in raw_side.lower() else 'short'
                     
             logging.info(f"[{self.exchange_id}] Closing {symbol} {pos['side']} | Params: {params}")
             return self.exchange.create_market_order(symbol, side, amount, params)
         except Exception as e:
-            logging.error(f"[{self.exchange_id}] Close Error: {e}")
-            return str(e)
+            err = str(e)
+            if "51000" in err:
+                return "Error: OKX posSide mismatch. Ensure Account is in Hedge Mode."
+            logging.error(f"[{self.exchange_id}] Close Error: {err}")
+            return err
 
     def cancel_algo_orders(self, symbol):
         """Cancels pending algo orders specifically for OKX."""

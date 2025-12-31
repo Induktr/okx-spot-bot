@@ -12,7 +12,7 @@ class Config(BaseSettings):
     """
     
     # Gemini API
-    GEMINI_API_KEY: str = Field(..., env="GEMINI_API_KEY")
+    GEMINI_API_KEY: str = Field("", env="GEMINI_API_KEY")
     GEMINI_KEYS: list[str] = [] # Loaded from external file if exists
     # Gemini Model Pool (rotates on rate limit errors)
     GEMINI_MODELS: list[str] = [
