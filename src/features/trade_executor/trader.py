@@ -48,15 +48,20 @@ class Trader:
             # Detect Position Mode (Net vs Long/Short) - Required for both Live and Demo
             try:
                 acc_config = self.exchange.private_get_account_config()
-                self.pos_mode = acc_config.get('data', [{}])[0].get('posMode', 'net_mode')
-                logging.info(f"Trader: OKX Account Mode detected: {self.pos_mode}")
+                data = acc_config.get('data', [{}])
+                if data:
+                    self.pos_mode = data[0].get('posMode', 'net_mode')
+                    logging.info(f"Trader: OKX Account Mode detected: {self.pos_mode} (Raw: {data[0]})")
+                else:
+                    logging.warning(f"Trader: OKX Account Config 'data' list empty, defaulting to long_short_mode")
+                    self.pos_mode = 'long_short_mode'
             except Exception as e:
-                logging.warning(f"Trader: Could not detect OKX posMode: {e}. Defaulting to safest.")
-                # If we have existing positions, we can try to guess or use a safer default
+                logging.warning(f"Trader: Could not detect OKX posMode: {e}. Defaulting to long_short_mode (Safer for Hedges).")
                 self.pos_mode = 'long_short_mode' 
 
         # Load Markets once
         try:
+            logging.info(f"Trader: Ready on {exchange_id} [Mode: {self.pos_mode}]")
             self.exchange.load_markets()
         except Exception as e:
             logging.error(f"Trader: Failed to load markets for {exchange_id}: {e}")
@@ -314,19 +319,24 @@ class Trader:
             
             if self.exchange_id == 'okx':
                 params['tdMode'] = 'cross'
-                if self.pos_mode == 'long_short_mode':
-                    # CRITICAL: For OKX Hedge Mode, posSide MUST be provided and must match 
-                    # the side of the position being closed (long or short).
-                    # We normalize this to ensure it's always lowercase 'long' or 'short'.
-                    raw_side = pos.get('side', 'long')
-                    params['posSide'] = 'long' if 'long' in raw_side.lower() else 'short'
+                
+                # OKX-CRITICAL: Hedge Mode requires posSide. 
+                # We determine based on the ACTUAL side of the position we found.
+                actual_side = pos.get('side', '').lower()
+                
+                if actual_side in ['long', 'short']:
+                    params['posSide'] = actual_side
+                    logging.info(f"[{self.exchange_id}] Hedge-Closing detected. Using posSide={actual_side}")
+                elif self.pos_mode == 'long_short_mode':
+                    # Fallback to global mode if side is ambiguous but mode is known
+                    params['posSide'] = 'long' if pos['side'] == 'long' else 'short'
                     
             logging.info(f"[{self.exchange_id}] Closing {symbol} {pos['side']} | Params: {params}")
             return self.exchange.create_market_order(symbol, side, amount, params)
         except Exception as e:
             err = str(e)
             if "51000" in err:
-                return "Error: OKX posSide mismatch. Ensure Account is in Hedge Mode."
+                return f"Error: OKX posSide mismatch. Bot Mode: {self.pos_mode}. Position Side: {pos.get('side')}. Please check OKX Account Settings (Position Mode)."
             logging.error(f"[{self.exchange_id}] Close Error: {err}")
             return err
 
