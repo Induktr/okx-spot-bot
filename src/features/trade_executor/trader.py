@@ -1,3 +1,4 @@
+from typing import List, Dict, Optional, Any, Union
 import ccxt
 import logging
 from src.app.config import config
@@ -7,7 +8,7 @@ class Trader:
     Hands module for A.S.T.R.A.
     Universal Trader supporting OKX, Binance, Bybit.
     """
-    def __init__(self, exchange_id='okx'):
+    def __init__(self, exchange_id: str = 'okx'):
         self.exchange_id = exchange_id
         exchange_class = getattr(ccxt, exchange_id)
         
@@ -93,10 +94,10 @@ class Trader:
             logging.error(f"[{self.exchange_id}] Balance error: {e}")
             return 0.0
 
-    def get_ticker(self, symbol):
+    def get_ticker(self, symbol: str) -> Optional[float]:
         try:
             ticker = self.exchange.fetch_ticker(symbol)
-            return ticker['last']
+            return float(ticker['last'])
         except Exception as e:
             logging.error(f"[{self.exchange_id}] Ticker error: {e}")
             return None
@@ -117,7 +118,7 @@ class Trader:
             return []
 
 
-    def get_positions(self, target_symbol=None):
+    def get_positions(self, target_symbol: Optional[str] = None) -> List[Dict[str, Any]]:
         try:
             # fetch_positions can return closed positions (0 contracts) on some exchanges
             positions = self.exchange.fetch_positions()

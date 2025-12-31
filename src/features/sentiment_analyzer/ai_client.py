@@ -34,10 +34,12 @@ class AIAgent:
             "   - Funding Tip: High positive funding (>0.05%) = crowded longs (reversal risk). Negative = shorts dominate.\n"
             "2. Strategy: Look for CONVERGENCE. If News is BULLISH + RSI low + Price > EMA = high-confidence BUY.\n"
             "3. Profit/Risk: Aim for 30-35% profit and 20% SL. Adjust based on market volatility.\n"
-            "4. Money Management: Base 'budget_usdt' on confidence (Sentiment 9-10 -> 25% balance, 6-8 -> 10%). Max 30% per coin.\n"
-            "5. Flipping: You can return action 'SELL' to flip a LONG to SHORT (and vice-versa) if trend and news flip.\n"
-            "Output Format: JSON only: {\"target_symbol\": \"BTC/USDT:USDT\", \"sentiment_score\": 1-10, \"action\": \"BUY/SELL/WAIT/CLOSE/ADJUST\", \"tp_pct\": 0.35, \"sl_pct\": 0.1, \"leverage\": 5, \"budget_usdt\": 15.0, \"reasoning\": \"Explain convergence of News + Technicals...\"}.\n"
-            "If no action is needed for any coin, return \"target_symbol\": \"NONE\" and \"action\": \"WAIT\".\n"
+            "4. Money Management: You MUST check the 'ACCOUNT BALANCE'. \n"
+            "   - If balance is 0: return action: 'WAIT' and target_symbol: 'NONE'.\n"
+            "   - Sizing: Base 'budget_usdt' on confidence (Sentiment 9-10 -> 25% balance, 6-8 -> 10%). Never exceed balance.\n"
+            "5. Flipping: You can return action 'SELL' to flip a LONG to SHORT (and vice-versa). You are responsible for deciding the leverage (1-20x) based on volatility.\n"
+            "Output Format: JSON only: {\"target_symbol\": \"BTC/USDT:USDT\", \"sentiment_score\": 1-10, \"action\": \"BUY/SELL/WAIT/CLOSE/ADJUST\", \"tp_pct\": 0.35, \"sl_pct\": 0.1, \"leverage\": 5, \"budget_usdt\": 15.0, \"reasoning\": \"Explain convergence of News + Technicals and why you chose this specific budget/leverage...\"}.\n"
+            "If no action is needed or balance is zero, return \"target_symbol\": \"NONE\" and \"action\": \"WAIT\".\n"
         )
         self._init_client()
 

@@ -15,6 +15,16 @@ from src.shared.utils.portfolio_tracker import portfolio_tracker
 
 app = Flask(__name__)
 
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Global error handler for all unhandled exceptions."""
+    logging.error(f"DASHBOARD ERROR: {e}")
+    return jsonify({
+        "status": "error",
+        "message": str(e),
+        "type": e.__class__.__name__
+    }), 500
+
 @app.route('/api/bot_status', methods=['GET'])
 def get_bot_status():
     return jsonify({"active": config.BOT_ACTIVE})

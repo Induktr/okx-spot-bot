@@ -201,9 +201,15 @@ def astra_cycle():
                             logging.info(f"[{eid.upper()}] Close result for flip: {close_res}")
                             time.sleep(3) # Increased sleep for settlement safety
 
-                    # Execute Entry
-                    lev = min(int(analysis.get('leverage', 3)), 10)
-                    res = t.execute_order(symbol, decision, float(analysis.get('budget_usdt', 10)), leverage=lev)
+                    # AI-Driven Money Management
+                    ai_lev = int(analysis.get('leverage', 3))
+                    ai_budget = float(analysis.get('budget_usdt', 0))
+                    
+                    if ai_budget <= 0:
+                        logging.warning(f"[{eid.upper()}] AI requested a trade but proposed $0 budget. Skipping execution.")
+                        continue
+                        
+                    res = t.execute_order(symbol, decision, ai_budget, leverage=ai_lev)
                     
                     # Immediate Protection Sync
                     time.sleep(2)
