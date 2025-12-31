@@ -824,7 +824,9 @@
                 }
 
             } catch (err) {
-                console.error("Dashboard Sync Failed - Fatal Error:", err);
+                if(err instanceof Error) {
+                    console.error("Dashboard Sync Failed - Fatal Error:", err);
+                }
             }
         }
         
@@ -960,7 +962,7 @@
                 } else {
                     alert("Failed to save credentials.");
                 }
-            } catch (e) {
+            } catch {
                 alert("Network error.");
             }
         }
@@ -995,7 +997,7 @@
                 } else {
                     showError(result.message || "Failed to add symbol");
                 }
-            } catch (e) {
+            } catch {
                 showError("Network error. Try again.");
             }
         }
@@ -1012,7 +1014,7 @@
                     console.log(`Switched to ${exchange}`);
                     updateDashboard(); // Refresh to see new balance/positions
                 }
-            } catch (e) {
+            } catch {
                 showError("Failed to switch exchange.");
             }
         }
@@ -1030,7 +1032,7 @@
                     console.log(`Switched ${exchange} to ${is_demo ? 'DEMO' : 'REAL'}`);
                     updateDashboard();
                 }
-            } catch (e) {
+            } catch {
                 showError("Failed to switch trading mode.");
             }
         }

@@ -51,17 +51,16 @@ class Trader:
                 data = acc_config.get('data', [{}])
                 if data:
                     self.pos_mode = data[0].get('posMode', 'net_mode')
-                    logging.info(f"Trader: OKX Account Mode detected: {self.pos_mode} (Raw: {data[0]})")
+                    logging.info(f"Trader: OKX Account Mode: {self.pos_mode} | Account Type: {data[0].get('acctLv')}")
                 else:
-                    logging.warning(f"Trader: OKX Account Config 'data' list empty, defaulting to long_short_mode")
-                    self.pos_mode = 'long_short_mode'
+                    self.pos_mode = 'net_mode'
             except Exception as e:
-                logging.warning(f"Trader: Could not detect OKX posMode: {e}. Defaulting to long_short_mode (Safer for Hedges).")
-                self.pos_mode = 'long_short_mode' 
+                logging.warning(f"Trader: Could not detect OKX posMode: {e}. Defaulting to net_mode.")
+                self.pos_mode = 'net_mode' 
 
         # Load Markets once
         try:
-            logging.info(f"Trader: Ready on {exchange_id} [Mode: {self.pos_mode}]")
+            logging.info(f"Trader: [{exchange_id}] initialized. (Hedge: {'YES' if self.pos_mode == 'long_short_mode' else 'NO'})")
             self.exchange.load_markets()
         except Exception as e:
             logging.error(f"Trader: Failed to load markets for {exchange_id}: {e}")
@@ -318,17 +317,15 @@ class Trader:
             }
             
             if self.exchange_id == 'okx':
-                params['tdMode'] = 'cross'
+                # Sync Margin Mode (tdMode) with position
+                params['tdMode'] = pos.get('marginMode', 'cross')
                 
-                # OKX-CRITICAL: Hedge Mode requires posSide. 
-                # We determine based on the ACTUAL side of the position we found.
+                # OKX-CRITICAL: Hedge Mode requires posSide matching the position's own side
                 actual_side = pos.get('side', '').lower()
-                
                 if actual_side in ['long', 'short']:
                     params['posSide'] = actual_side
-                    logging.info(f"[{self.exchange_id}] Hedge-Closing detected. Using posSide={actual_side}")
+                    logging.info(f"[{self.exchange_id}] Closing {actual_side.upper()} with posSide={actual_side}, tdMode={params['tdMode']}")
                 elif self.pos_mode == 'long_short_mode':
-                    # Fallback to global mode if side is ambiguous but mode is known
                     params['posSide'] = 'long' if pos['side'] == 'long' else 'short'
                     
             logging.info(f"[{self.exchange_id}] Closing {symbol} {pos['side']} | Params: {params}")
@@ -336,7 +333,22 @@ class Trader:
         except Exception as e:
             err = str(e)
             if "51000" in err:
-                return f"Error: OKX posSide mismatch. Bot Mode: {self.pos_mode}. Position Side: {pos.get('side')}. Please check OKX Account Settings (Position Mode)."
+                # Add critical debug info
+                import json
+                pos_dump = json.dumps({k:v for k,v in pos.items() if k != 'info'}, indent=2)
+                logging.error(f"[{self.exchange_id}] CRITICAL: posSide mismatch detected.\nBot Mode: {self.pos_mode}\nPosition Data: {pos_dump}\nError: {err}")
+                
+                # FALLBACK: If we are in long_short_mode but it failed, try WITHOUT posSide once 
+                if 'posSide' in params and self.pos_mode == 'long_short_mode':
+                    logging.info(f"[{self.exchange_id}] Attempting FALLBACK closure without posSide...")
+                    try:
+                        fallback_params = {k:v for k,v in params.items() if k != 'posSide'}
+                        return self.exchange.create_market_order(symbol, side, amount, fallback_params)
+                    except Exception as fe:
+                        return f"Error: OKX parameter mismatch (Double Fail). Bot tried Hedge & Net modes. Error: {str(fe)}"
+
+                return f"Error: OKX posSide mismatch. Bot Mode: {self.pos_mode}. Position Side: {pos.get('side')}. Please check OKX Account Settings."
+            
             logging.error(f"[{self.exchange_id}] Close Error: {err}")
             return err
 
