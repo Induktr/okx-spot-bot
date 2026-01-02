@@ -139,7 +139,7 @@ class Trader:
             return []
 
 
-    def get_positions(self, target_symbol: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_positions(self, target_symbol: Optional[str] = None) -> list[dict[str, any]]:
         try:
             # fetch_positions can return closed positions (0 contracts) on some exchanges
             positions = self.exchange.fetch_positions()
@@ -203,8 +203,20 @@ class Trader:
             # logging.debug(f"[{self.exchange_id}] Funding Rate not available: {e}") 
             return 0.0
 
+    def _sync_okx_mode(self):
+        """Internal helper to ensure bot's pos_mode matches exchange reality."""
+        if self.exchange_id != 'okx': return
+        try:
+            acc_config = self.exchange.private_get_account_config()
+            data = acc_config.get('data', [{}])
+            if data:
+                self.pos_mode = data[0].get('posMode', 'net_mode')
+        except:
+            pass
+
     def execute_order(self, symbol, side, budget_usdt, leverage=3):
         """Unified order execution with manual contract calculation for Swaps."""
+        self._sync_okx_mode()
         side = side.upper()
         if side == "WAIT": return "WAIT"
 
@@ -319,10 +331,18 @@ class Trader:
             params = {'reduceOnly': True}
             
             if self.exchange_id == 'okx':
-                # Strictly enforce OKX V5 requirements
+                self._sync_okx_mode()
+                # Strictly enforce OKX V5 requirements for Hedge Mode
                 params['tdMode'] = 'cross'
-                params['posSide'] = pos.get('side', 'long').lower()
-                logging.info(f"[{self.exchange_id}] Atomic Close: {symbol} {params['posSide'].upper()} | Amount: {amount}")
+                
+                # SURGICAL FIX: Extract side from position and map to posSide
+                raw_side = str(pos.get('side', 'long')).lower()
+                if 'short' in raw_side:
+                    params['posSide'] = 'short'
+                else:
+                    params['posSide'] = 'long'
+                
+                logging.info(f"[{self.exchange_id}] Atomic Close: {symbol} | Side: {raw_side.upper()} | Map to posSide: {params['posSide']}")
 
             # Send execution signal
             res = self.exchange.create_market_order(symbol, side, amount, params)
@@ -357,11 +377,20 @@ class Trader:
         # 1. KILL the old position
         close_res = self.close_position(current_pos)
         if "SUCCESS" not in close_res:
-            return f"FLIP ABORTED: Could not close existing position. Detail: {close_res}"
+            return f"FLIP ABORTED: {close_res}"
             
-        # 2. Wait for exchange margin settlement (Small buffer)
+        # 2. Wait for exchange margin settlement & verification
         time.sleep(1)
-        
+        verification_retries = 3
+        for i in range(verification_retries):
+            remaining = self.get_positions(target_symbol=symbol)
+            if not remaining:
+                break
+            logging.warning(f"[{eid}] Flip Verification: {symbol} still active. Waiting...")
+            time.sleep(1)
+        else:
+            return f"FLIP ABORTED: Settlement Timeout. Position {symbol} still detected."
+            
         # 3. OPEN the new position
         open_res = self.execute_order(symbol, target_decision, budget_usdt, leverage)
         return f"FLIP SUCCESS: {open_res}"

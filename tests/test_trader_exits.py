@@ -27,6 +27,9 @@ class TestTraderExits(unittest.TestCase):
                 self.trader = Trader(exchange_id='okx')
                 # Inject a fresh mock for each test
                 self.trader.exchange = MagicMock()
+                self.trader.exchange.private_get_account_config.return_value = {
+                    'data': [{'posMode': 'long_short_mode'}]
+                }
                 self.trader.exchange_id = 'okx'
 
     def test_okx_close_long_hedge_mode(self):
@@ -105,7 +108,7 @@ class TestTraderExits(unittest.TestCase):
         
         self.assertIn("OKX posSide mismatch", res)
         self.assertIn("Bot Mode: long_short_mode", res)
-        self.assertIn("Please check OKX Account Settings", res)
+        self.assertIn("Check OKX Settings", res)
 
 if __name__ == '__main__':
     unittest.main()
