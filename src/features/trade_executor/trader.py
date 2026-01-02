@@ -254,13 +254,8 @@ class Trader:
             if not current_price: return "Price Error"
 
             # Set Leverage (Adaptive)
-            leverage = self.calculate_adaptive_leverage(symbol, leverage)
-            try:
-                lev_params = {}
-                if self.exchange_id == 'okx' and self.pos_mode == 'long_short_mode':
-                    lev_params['posSide'] = 'long' if side.upper() == "BUY" else "short"
-                self.exchange.set_leverage(leverage, symbol, lev_params)
-            except: pass
+            side_for_lev = 'long' if side.upper() == "BUY" else "short"
+            self.set_leverage(symbol, leverage, side=side_for_lev)
 
             # PRE-FLIGHT CHECK: Free Margin Check
             free_balance = self.get_free_balance()
@@ -303,6 +298,22 @@ class Trader:
                 
         except Exception as e:
             return self._parse_execution_result(str(e))
+
+    def set_leverage(self, symbol, leverage, side=None):
+        """Standalone method to update leverage with Hedge Mode awareness."""
+        try:
+            params = {}
+            if self.exchange_id == 'okx' and self.pos_mode == 'long_short_mode' and side:
+                params['posSide'] = side.lower()
+            
+            # Adaptive check
+            adjusted = self.calculate_adaptive_leverage(symbol, leverage)
+            self.exchange.set_leverage(adjusted, symbol, params)
+            logging.info(f"[{self.exchange_id}] Leverage Adjusted: {symbol} -> {adjusted}x ({side if side else 'NET'})")
+            return f"LVG:{adjusted}x"
+        except Exception as e:
+            # logging.debug(f"[{self.exchange_id}] Failed to set leverage: {e}")
+            return f"LVG:ERR"
 
     def _parse_execution_result(self, res):
         """Converts raw exchange responses into crystalline human-readable summaries."""

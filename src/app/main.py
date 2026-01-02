@@ -216,17 +216,19 @@ def astra_cycle():
                             # ATOMIC FLIP
                             res = t.execute_flip(symbol, symbol_positions[0], decision, ai_budget, ai_lev)
                         else:
-                            res = f"SKIP: Already in {current_side} position for {symbol}."
+                            # ADJUST EXISTING (Leverage + SL/TP)
+                            lev_res = t.set_leverage(symbol, ai_lev, side=current_side.lower())
+                            res = f"UPDATED: {lev_res} for existing {current_side}"
                     else:
                         # NORMAL ENTRY
                         res = t.execute_order(symbol, decision, ai_budget, leverage=ai_lev)
                     
-                    # Protection Sync if new position exists
+                    # Protection Sync if new or existing position exists
                     time.sleep(1)
-                    new_pos = t.get_positions(target_symbol=symbol)
-                    if new_pos:
+                    updated_pos = t.get_positions(target_symbol=symbol)
+                    if updated_pos:
                         sync_status = t.sync_sl_tp(
-                            new_pos[0], 
+                            updated_pos[0], 
                             tp_pct=float(analysis.get('tp_pct', 0.35)), 
                             sl_pct=float(analysis.get('sl_pct', 0.2))
                         )
@@ -235,13 +237,17 @@ def astra_cycle():
                         execution_results.append(f"{eid.upper()}: {res}")
                 
                 elif decision == "ADJUST":
-                     execution_results.append(f"{eid.upper()}: SL/TP Updated")
                      if symbol_positions:
-                         t.sync_sl_tp(
+                         ai_lev = int(analysis.get('leverage', 3))
+                         lev_res = t.set_leverage(symbol, ai_lev, side=symbol_positions[0]['side'].lower())
+                         sync_status = t.sync_sl_tp(
                             symbol_positions[0], 
-                            float(analysis.get('tp_pct', 0.3)), 
+                            float(analysis.get('tp_pct', 0.35)), 
                             float(analysis.get('sl_pct', 0.2))
                         )
+                         execution_results.append(f"{eid.upper()}: ADJUSTED ({lev_res}, {sync_status})")
+                     else:
+                         execution_results.append(f"{eid.upper()}: ADJUST skipped (No position)")
             except Exception as exchange_err:
                 error_log = f"{eid.upper()} Failed: {str(exchange_err)}"
                 logging.error(error_log)

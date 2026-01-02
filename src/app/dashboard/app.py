@@ -2,6 +2,7 @@ from flask import Flask, render_template, jsonify, request, send_file
 import os
 import sys
 import logging
+import time
 
 # Add project root to path so we can import shared utils
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
@@ -50,6 +51,7 @@ def index():
 
 @app.route('/api/data')
 def get_data():
+    start_timer = time.perf_counter()
     entries = report_parser.parse_latest()
     
     total_balance = 0
@@ -73,6 +75,26 @@ def get_data():
     # Sort history by timestamp (newest first)
     all_history.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
 
+    # Calculate Technical Metrics
+    latency_ms = (time.perf_counter() - start_timer) * 1000
+    
+    # Simple Health Score Calculation
+    # Base 100, penalize for high latency
+    health_score = 100
+    if latency_ms > 300:
+        penalty = (latency_ms - 300) / 20 # -1 point per 20ms over 300
+        health_score = max(0, 100 - penalty)
+        
+    last_sync_status = True # If we reached here without bubbling exception
+    
+    # Inject into Analytics
+    analytics = portfolio_tracker.get_analytics(live_balance=total_balance, trade_history=all_history)
+    analytics.update({
+        "api_health_score": round(health_score),
+        "last_sync_status": last_sync_status,
+        "request_latency": round(latency_ms)
+    })
+
     return jsonify({
         "entries": entries,
         "balance": total_balance,
@@ -83,7 +105,7 @@ def get_data():
         "active_exchanges": config.ACTIVE_EXCHANGES,
         "sandbox_modes": config.SANDBOX_MODES,
         "bot_active": config.BOT_ACTIVE,
-        "analytics": portfolio_tracker.get_analytics(live_balance=total_balance, trade_history=all_history)
+        "analytics": analytics
     })
 
 @app.route('/api/portfolio/history')

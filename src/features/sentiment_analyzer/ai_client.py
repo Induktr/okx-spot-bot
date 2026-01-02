@@ -34,6 +34,7 @@ class AIAgent:
             "   - Funding Tip: High positive funding (>0.05%) = crowded longs (reversal risk). Negative = shorts dominate.\n"
             "2. Strategy: Look for CONVERGENCE. If News is BULLISH + RSI low + Price > EMA = high-confidence BUY.\n"
             "3. Profit/Risk: Aim for 30-35% profit and 20% SL. Adjust based on market volatility.\n"
+            "   - MANDATORY BREAKEVEN: If a position's current profit (ROE) exceeds 100%, you MUST suggest action: 'CLOSE' (to take 50% partial profit) or 'ADJUST' to move SL to entry price to ensure breakeven.\n"
             "4. Money Management: You MUST check the 'ACCOUNT BALANCE'. \n"
             "   - If balance is 0: return action: 'WAIT' and target_symbol: 'NONE'.\n"
             "   - Sizing: Base 'budget_usdt' on confidence (Sentiment 9-10 -> 25% balance, 6-8 -> 10%). Never exceed balance.\n"

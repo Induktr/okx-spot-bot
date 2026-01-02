@@ -816,10 +816,25 @@
                     document.getElementById('analytics-net').innerText = `${a.net_profit >= 0 ? '+' : ''}${a.net_profit.toFixed(2)} USDT`;
                     document.getElementById('analytics-pf').innerText = a.profit_factor.toFixed(2);
                     
-                    const reliability = a.profit_factor >= 1.5 ? 'EXCELLENT' : a.profit_factor >= 1.0 ? 'OPTIMAL' : 'STRESS';
+                    // Refactored Reliability Status
+                    const score = a.api_health_score !== undefined ? a.api_health_score : 100;
+                    const synced = a.last_sync_status !== undefined ? a.last_sync_status : true;
+                    const latency = a.request_latency || 0;
+                    
+                    let rLabel = "WARNING";
+                    let rColor = "text-yellow-400";
+                    
+                    if (score > 90 && synced && latency < 300) {
+                         rLabel = "STABLE";
+                         rColor = "text-green-400";
+                    } else if (score < 50 || latency > 1000 || !synced) {
+                         rLabel = "STRESS";
+                         rColor = "text-red-500";
+                    }
+                    
                     if (document.getElementById('analytics-reliability')) {
-                        document.getElementById('analytics-reliability').innerText = reliability;
-                        document.getElementById('analytics-reliability').className = `text-sm font-orbitron ${reliability === 'EXCELLENT' ? 'text-green-400' : reliability === 'OPTIMAL' ? 'text-blue-300' : 'text-red-500'}`;
+                        document.getElementById('analytics-reliability').innerText = `${rLabel} (${latency}ms)`;
+                        document.getElementById('analytics-reliability').className = `text-sm font-orbitron ${rColor}`;
                     }
                 }
 
