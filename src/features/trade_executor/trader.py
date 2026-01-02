@@ -1,6 +1,6 @@
-from typing import List, Dict, Optional, Any, Union
 import ccxt
 import logging
+import time
 from src.app.config import config
 
 class Trader:
@@ -306,51 +306,64 @@ class Trader:
 
 
     def close_position(self, pos):
+        """
+        Atomic force_close: sends close order and verifies closure via polling.
+        Guarantees that the position is 0 before returning SUCCESS.
+        """
         try:
             symbol = pos['symbol']
             side = 'sell' if pos['side'] == 'long' else 'buy'
             amount = pos['contracts']
             
-            # OKX requires posSide and tdMode even for closing in specific account modes
-            params = {
-                'reduceOnly': True
-            }
+            params = {'reduceOnly': True}
             
             if self.exchange_id == 'okx':
-                # Sync Margin Mode (tdMode) with position
-                params['tdMode'] = pos.get('marginMode', 'cross')
-                
-                # OKX-CRITICAL: Hedge Mode requires posSide matching the position's own side
-                actual_side = pos.get('side', '').lower()
-                if actual_side in ['long', 'short']:
-                    params['posSide'] = actual_side
-                    logging.info(f"[{self.exchange_id}] Closing {actual_side.upper()} with posSide={actual_side}, tdMode={params['tdMode']}")
-                elif self.pos_mode == 'long_short_mode':
-                    params['posSide'] = 'long' if pos['side'] == 'long' else 'short'
-                    
-            logging.info(f"[{self.exchange_id}] Closing {symbol} {pos['side']} | Params: {params}")
-            return self.exchange.create_market_order(symbol, side, amount, params)
+                # Strictly enforce OKX V5 requirements
+                params['tdMode'] = 'cross'
+                params['posSide'] = pos.get('side', 'long').lower()
+                logging.info(f"[{self.exchange_id}] Atomic Close: {symbol} {params['posSide'].upper()} | Amount: {amount}")
+
+            # Send execution signal
+            res = self.exchange.create_market_order(symbol, side, amount, params)
+            
+            # ATOMIC VERIFICATION: Poll for closure
+            max_retries = 5
+            for i in range(max_retries):
+                time.sleep(0.5) # 500ms polling interval
+                active_pos = self.get_positions(target_symbol=symbol)
+                if not active_pos:
+                    logging.info(f"[{self.exchange_id}] Verification Success: {symbol} is closed.")
+                    return "SUCCESS: Position Closed"
+                logging.warning(f"[{self.exchange_id}] Verification Poll {i+1}/{max_retries}: {symbol} still active.")
+            
+            return f"FAILED: Closure verification timed out for {symbol}."
+
         except Exception as e:
             err = str(e)
             if "51000" in err:
-                # Add critical debug info
-                import json
-                pos_dump = json.dumps({k:v for k,v in pos.items() if k != 'info'}, indent=2)
-                logging.error(f"[{self.exchange_id}] CRITICAL: posSide mismatch detected.\nBot Mode: {self.pos_mode}\nPosition Data: {pos_dump}\nError: {err}")
-                
-                # FALLBACK: If we are in long_short_mode but it failed, try WITHOUT posSide once 
-                if 'posSide' in params and self.pos_mode == 'long_short_mode':
-                    logging.info(f"[{self.exchange_id}] Attempting FALLBACK closure without posSide...")
-                    try:
-                        fallback_params = {k:v for k,v in params.items() if k != 'posSide'}
-                        return self.exchange.create_market_order(symbol, side, amount, fallback_params)
-                    except Exception as fe:
-                        return f"Error: OKX parameter mismatch (Double Fail). Bot tried Hedge & Net modes. Error: {str(fe)}"
-
-                return f"Error: OKX posSide mismatch. Bot Mode: {self.pos_mode}. Position Side: {pos.get('side')}. Please check OKX Account Settings."
-            
-            logging.error(f"[{self.exchange_id}] Close Error: {err}")
+                return f"Error: OKX posSide mismatch. Bot Mode: {self.pos_mode}. Check OKX Settings."
+            logging.error(f"[{self.exchange_id}] Atomic Close Error: {err}")
             return err
+
+    def execute_flip(self, symbol, current_pos, target_decision, budget_usdt, leverage=3):
+        """
+        Unified Flip Logic: Guarantees the old position is dead before opening the new one.
+        Blocking operation for atomic safety.
+        """
+        eid = self.exchange_id.upper()
+        logging.info(f"[{eid}] ATOMIC FLIP START: {symbol} -> {target_decision}")
+        
+        # 1. KILL the old position
+        close_res = self.close_position(current_pos)
+        if "SUCCESS" not in close_res:
+            return f"FLIP ABORTED: Could not close existing position. Detail: {close_res}"
+            
+        # 2. Wait for exchange margin settlement (Small buffer)
+        time.sleep(1)
+        
+        # 3. OPEN the new position
+        open_res = self.execute_order(symbol, target_decision, budget_usdt, leverage)
+        return f"FLIP SUCCESS: {open_res}"
 
     def cancel_algo_orders(self, symbol):
         """Cancels pending algo orders specifically for OKX."""

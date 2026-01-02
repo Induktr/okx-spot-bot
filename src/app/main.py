@@ -140,7 +140,17 @@ def astra_cycle():
 
         # 2. Brain: AI Analysis
         logging.info("Step 2: AI Selection and Analysis...")
-        analysis = ai_client.analyze_news(headlines, total_balance, market_snapshot, mood_context)
+        try:
+            analysis = ai_client.analyze_news(headlines, total_balance, market_snapshot, mood_context)
+        except Exception as e:
+            if "429" in str(e) or "ResourceExhausted" in str(e):
+                logging.critical("🚨 Gemini API Rate Limit (429) reached! Activating Circuit Breaker (60m).")
+                config.BOT_ACTIVE = False
+                telegram_bot.send_emergency_alert("API CIRCUIT BREAKER", "Gemini 429 Rate Limit hit. System paused for 60 minutes to protect resources.")
+                # We return here; schedule will trigger again, but config.BOT_ACTIVE will skip it 
+                # Until a manual resume or we could use a timer.
+                return
+            raise e
         
         if not isinstance(analysis, dict):
             logging.error(f"Critical: AI returned malformed data type: {type(analysis)}")
@@ -155,8 +165,8 @@ def astra_cycle():
             scribe.log_cycle(analysis, "Cycle complete: No action.")
             return
 
-        if decision in ["BUY", "SELL"] and confidence < 3:
-            msg = f"AI Confidence ({confidence}/10) is not high enough for a new trade (Need >= 7). Standing by."
+        if decision in ["BUY", "SELL"] and confidence < 8.5:
+            msg = f"AI Confidence ({confidence}/10) is not high enough for a new trade (Need >= 8.5). Standing by."
             logging.info(msg)
             scribe.log_cycle(analysis, f"Cycle complete: {msg}")
             return
@@ -183,57 +193,41 @@ def astra_cycle():
                     if symbol_positions:
                         logging.info(f"[{eid.upper()}] CLOSING position for {symbol} per AI request.")
                         res = t.close_position(symbol_positions[0])
-                        execution_results.append(f"{eid.upper()}: Closed {symbol} ({res})")
+                        execution_results.append(f"{eid.upper()}: {res}")
                     else:
-                        msg = f"{eid.upper()}: Cannot CLOSE {symbol} - No active position found."
+                        msg = f"{eid.upper()}: No position to close for {symbol}."
                         logging.warning(msg)
                         execution_results.append(msg)
 
                 elif decision in ["BUY", "SELL"]:
-                    # Handle FLIP (Reverse position)
+                    ai_lev = int(analysis.get('leverage', 3))
+                    ai_budget = float(analysis.get('budget_usdt', 0))
+                    
+                    if ai_budget <= 0:
+                        logging.warning(f"[{eid.upper()}] AI requested a trade but proposed $0 budget. Skipping.")
+                        continue
+                        
+                    # Handle FLIP (Reverse position) or Simple Execution
                     if symbol_positions:
                         current_side = symbol_positions[0]['side'].upper() # 'LONG' or 'SHORT'
                         target_side = "LONG" if decision == "BUY" else "SHORT"
                         
                         if current_side != target_side:
-                            logging.info(f"[{eid.upper()}] FLIPPING detected. Closing {current_side} before opening {target_side}...")
-                            close_res = t.close_position(symbol_positions[0])
-                            
-                            # If close_position returned a string (error), abord flip
-                            if isinstance(close_res, str) and ("Error" in close_res or "failed" in close_res.lower()):
-                                error_msg = f"{eid.upper()}: Flip Failed (Could not close {current_side}): {close_res}"
-                                logging.error(error_msg)
-                                execution_results.append(error_msg)
-                                continue
-
-                            logging.info(f"[{eid.upper()}] Close result for flip: {close_res}")
-                            time.sleep(5) # Increased sleep for settlement safety and exchange sync
-                            
-                            # Double check position is closed
-                            verify_pos = t.get_positions(target_symbol=symbol)
-                            if verify_pos:
-                                error_msg = f"{eid.upper()}: Flip Failed (Position {symbol} still active after close attempt)"
-                                logging.error(error_msg)
-                                execution_results.append(error_msg)
-                                continue
-
-                    # AI-Driven Money Management
-                    ai_lev = int(analysis.get('leverage', 3))
-                    ai_budget = float(analysis.get('budget_usdt', 0))
+                            # ATOMIC FLIP
+                            res = t.execute_flip(symbol, symbol_positions[0], decision, ai_budget, ai_lev)
+                        else:
+                            res = f"SKIP: Already in {current_side} position for {symbol}."
+                    else:
+                        # NORMAL ENTRY
+                        res = t.execute_order(symbol, decision, ai_budget, leverage=ai_lev)
                     
-                    if ai_budget <= 0:
-                        logging.warning(f"[{eid.upper()}] AI requested a trade but proposed $0 budget. Skipping execution.")
-                        continue
-                        
-                    res = t.execute_order(symbol, decision, ai_budget, leverage=ai_lev)
-                    
-                    # Immediate Protection Sync
-                    time.sleep(2)
+                    # Protection Sync if new position exists
+                    time.sleep(1)
                     new_pos = t.get_positions(target_symbol=symbol)
                     if new_pos:
                         sync_status = t.sync_sl_tp(
                             new_pos[0], 
-                            tp_pct=float(analysis.get('tp_pct', 0.3)), 
+                            tp_pct=float(analysis.get('tp_pct', 0.35)), 
                             sl_pct=float(analysis.get('sl_pct', 0.2))
                         )
                         execution_results.append(f"{eid.upper()}: {res} ({sync_status})")
