@@ -323,23 +323,52 @@ class Trader:
 
     def close_position(self, pos):
         """
-        Ultimate Brute-Force Close: Uses multiple strategies to guarantee position death.
-        1. Try Hedge parameters based on raw info.
-        2. Fallback to Net mode (reduceOnly).
-        3. Fallback to Inverse mapping.
+        Nuclear Close Option: For OKX, uses the dedicated close-position endpoint.
+        For other exchanges, uses the standard encounter-order strategy.
         """
         symbol = pos['symbol']
+        eid = self.exchange_id
+        
         try:
-            # 1. PREPARATION: Get fresh precision and raw data
-            raw_pos_side = pos.get('info', {}).get('posSide', '').lower() # 'long', 'short', or 'net'
+            # --- OKX NUCLEAR OPTION ---
+            if eid == 'okx':
+                self._sync_okx_mode()
+                # Extract raw market ID (e.g., SOL-USDT-SWAP)
+                inst_id = pos.get('info', {}).get('instId')
+                if not inst_id:
+                    # Fallback if info is missing
+                    market = self.exchange.market(symbol)
+                    inst_id = market['id']
+                
+                mgn_mode = pos.get('marginMode', 'cross')
+                pos_side = pos.get('info', {}).get('posSide', 'net')
+                
+                payload = {
+                    'instId': inst_id,
+                    'mgnMode': mgn_mode
+                }
+                
+                # In Hedge mode, posSide is mandatory for the close API
+                if pos_side in ['long', 'short']:
+                    payload['posSide'] = pos_side
+                
+                logging.info(f"[OKX] NUCLEAR CLOSE: {symbol} | Payload: {payload}")
+                
+                # Call the specialized OKX V5 endpoint directly
+                res = self.exchange.private_post_trade_close_position(payload)
+                
+                # Check for API-level success (OKX returns 0 string for success)
+                if str(res.get('code', '')) == '0':
+                    return self._verify_closure(symbol)
+                else:
+                    raise Exception(f"OKX Close API Error: {res}")
+
+            # --- STANDARD CCXT CLOSE (Binance, Bybit) ---
+            raw_pos_side = pos.get('info', {}).get('posSide', '').lower()
             amount_raw = float(pos.get('contracts', 0))
             amount_str = self.exchange.amount_to_precision(symbol, amount_raw)
             amount = float(amount_str)
             
-            # Determine Action Side
-            # To close a SHORT (okx reports posSide: short), we BUY.
-            # To close a LONG (okx reports posSide: long), we SELL.
-            # If posSide is 'net', use 'side' property.
             if raw_pos_side == 'short':
                 side = 'buy'
             elif raw_pos_side == 'long':
@@ -347,52 +376,24 @@ class Trader:
             else:
                 side = 'sell' if pos.get('side') == 'long' else 'buy'
 
-            # Strategy A: Best Guess (Hedge or Net based on detected mode)
-            params = {}
-            if self.exchange_id == 'okx':
-                self._sync_okx_mode()
-                params['tdMode'] = pos.get('marginMode', 'cross')
-                if raw_pos_side in ['long', 'short']:
-                    params['posSide'] = raw_pos_side
-                    # Reminder: OKX V5 forbids reduceOnly in Hedge Mode
-                else:
-                    params['reduceOnly'] = True
-            else:
-                params['reduceOnly'] = True
+            params = {'reduceOnly': True}
+            logging.info(f"[{eid}] Standard Close: {symbol} | Side: {side.upper()} | Amount: {amount_str}")
+            self.exchange.create_market_order(symbol, side, amount, params)
+            return self._verify_closure(symbol)
 
-            logging.info(f"[{self.exchange_id}] ATTEMPT 1 (Primary): Close {symbol} | Side: {side.upper()} | Amount: {amount_str} | Params: {params}")
+        except Exception as e:
+            raw_err = str(e)
+            logging.error(f"[{eid}] CRITICAL: Close failed for {symbol}: {raw_err}")
             
+            # Final attempt: try simple market order without ANY special params
             try:
-                self.exchange.create_market_order(symbol, side, amount, params)
+                logging.warning(f"[{eid}] Emergency Flatten Attempt for {symbol}...")
+                side = 'sell' if pos.get('side') == 'long' else 'buy'
+                self.exchange.create_market_order(symbol, side, float(pos['contracts']))
                 return self._verify_closure(symbol)
-            except Exception as e1:
-                err1 = str(e1)
-                if "51000" not in err1 and "51008" not in err1: raise e1 # If not param/margin error, re-raise
-                
-                logging.warning(f"[{self.exchange_id}] ATTEMPT 1 FAILED: {err1}. Trying ATTEMPT 2 (Net Fallback)...")
-                
-                # Strategy B: Net Mode Fallback (The "Flatten" approach)
-                try:
-                    fallback_params = {'reduceOnly': True}
-                    if self.exchange_id == 'okx': 
-                        fallback_params['tdMode'] = pos.get('marginMode', 'cross')
-                    self.exchange.create_market_order(symbol, side, amount, fallback_params)
-                    return self._verify_closure(symbol)
-                except Exception as e2:
-                    err2 = str(e2)
-                    logging.warning(f"[{self.exchange_id}] ATTEMPT 2 FAILED: {err2}. Final Emergency Attempt (Inverse)...")
-                    
-                    # Strategy C: Inverse Fallback (Maybe side is inverted in mapping?)
-                    try:
-                        inv_side = 'buy' if side == 'sell' else 'sell'
-                        self.exchange.create_market_order(symbol, inv_side, amount, {'reduceOnly': True})
-                        return self._verify_closure(symbol)
-                    except Exception as e3:
-                        import json
-                        pos_dump = json.dumps({k:v for k,v in pos.items() if k != 'info'}, indent=2)
-                        raw_dump = json.dumps(pos.get('info', {}), indent=2)
-                        logging.error(f"FATAL: All closure attempts failed for {symbol}.\nPos Logic: {pos_dump}\nRaw Exchange Info: {raw_dump}\nFinal Error: {e3}")
-                        return f"FAILED: Closure logic exhausted for {symbol}. Manual intervention required."
+            except Exception as final_e:
+                logging.critical(f"FATAL: {symbol} closure exhausted. Manual action required. Error: {final_e}")
+                return f"FAILED: Closure logic exhausted for {symbol}."
 
         except Exception as e:
             return f"Error in close_position: {str(e)}"
