@@ -328,21 +328,26 @@ class Trader:
             side = 'sell' if pos['side'] == 'long' else 'buy'
             amount = pos['contracts']
             
-            params = {'reduceOnly': True}
+            # Unified parameter building
+            params = {}
             
             if self.exchange_id == 'okx':
                 self._sync_okx_mode()
-                # Strictly enforce OKX V5 requirements for Hedge Mode
-                params['tdMode'] = 'cross'
-                
-                # SURGICAL FIX: Extract side from position and map to posSide
-                raw_side = str(pos.get('side', 'long')).lower()
-                if 'short' in raw_side:
-                    params['posSide'] = 'short'
+                # OKX V5: reduceOnly is NOT applicable in Hedge Mode (long_short_mode)
+                if self.pos_mode == 'long_short_mode':
+                    # Extract side directly from position
+                    raw_side = str(pos.get('side', 'long')).lower()
+                    params['posSide'] = 'short' if 'short' in raw_side else 'long'
+                    # Use actual position margin mode (cross vs isolated)
+                    params['tdMode'] = pos.get('marginMode', 'cross')
+                    logging.info(f"[{self.exchange_id}] Closing HEDGE: {symbol} | Side: {raw_side.upper()} | Map to posSide: {params['posSide']} | tdMode: {params['tdMode']}")
                 else:
-                    params['posSide'] = 'long'
-                
-                logging.info(f"[{self.exchange_id}] Atomic Close: {symbol} | Side: {raw_side.upper()} | Map to posSide: {params['posSide']}")
+                    # Net mode uses reduceOnly
+                    params['reduceOnly'] = True
+                    params['tdMode'] = 'cross'
+                    logging.info(f"[{self.exchange_id}] Closing NET: {symbol} | tdMode: cross")
+            else:
+                params['reduceOnly'] = True
 
             # Send execution signal
             res = self.exchange.create_market_order(symbol, side, amount, params)
@@ -433,14 +438,18 @@ class Trader:
             sl_str = self.exchange.price_to_precision(symbol, sl_price)
 
             params = {
-                'tdMode': 'cross',
-                'ordType': 'conditional',
-                'reduceOnly': True
+                'ordType': 'conditional'
             }
             
-            # Critical FIX for Hedge Mode
-            if self.pos_mode == 'long_short_mode':
-                params['posSide'] = side # Must match the position we are protecting
+            if self.exchange_id == 'okx':
+                params['tdMode'] = pos.get('marginMode', 'cross')
+                # OKX V5: reduceOnly is for net mode only
+                if self.pos_mode == 'long_short_mode':
+                    params['posSide'] = side
+                else:
+                    params['reduceOnly'] = True
+            else:
+                params['reduceOnly'] = True
 
             logging.info(f"[{self.exchange_id}] Syncing TP/SL for {symbol} ({side}). TP: {tp_str}, SL: {sl_str}")
 

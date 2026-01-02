@@ -165,8 +165,8 @@ def astra_cycle():
             scribe.log_cycle(analysis, "Cycle complete: No action.")
             return
 
-        if decision in ["BUY", "SELL"] and confidence < 8.5:
-            msg = f"AI Confidence ({confidence}/10) is not high enough for a new trade (Need >= 8.5). Standing by."
+        if decision in ["BUY", "SELL"] and confidence < 7:
+            msg = f"AI Confidence ({confidence}/10) is not high enough for a new trade (Need >= 7). Standing by."
             logging.info(msg)
             scribe.log_cycle(analysis, f"Cycle complete: {msg}")
             return
