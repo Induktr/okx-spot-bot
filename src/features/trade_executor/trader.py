@@ -1,3 +1,4 @@
+from typing import List, Dict, Optional, Any, Union
 import ccxt
 import logging
 import time
