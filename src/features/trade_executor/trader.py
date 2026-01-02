@@ -256,7 +256,10 @@ class Trader:
             # Set Leverage (Adaptive)
             leverage = self.calculate_adaptive_leverage(symbol, leverage)
             try:
-                self.exchange.set_leverage(leverage, symbol)
+                lev_params = {}
+                if self.exchange_id == 'okx' and self.pos_mode == 'long_short_mode':
+                    lev_params['posSide'] = 'long' if side.upper() == "BUY" else "short"
+                self.exchange.set_leverage(leverage, symbol, lev_params)
             except: pass
 
             # PRE-FLIGHT CHECK: Free Margin Check
@@ -325,7 +328,13 @@ class Trader:
         """
         try:
             symbol = pos['symbol']
-            side = 'sell' if pos['side'] == 'long' else 'buy'
+            
+            # Robust Side Detection for closure
+            current_side = str(pos.get('side', 'long')).lower()
+            info_side = str(pos.get('info', {}).get('posSide', '')).lower()
+            is_pos_short = 'short' in current_side or 'sell' in current_side or 'short' in info_side
+            
+            side = 'buy' if is_pos_short else 'sell'
             amount = pos['contracts']
             
             # Unified parameter building
@@ -335,12 +344,10 @@ class Trader:
                 self._sync_okx_mode()
                 # OKX V5: reduceOnly is NOT applicable in Hedge Mode (long_short_mode)
                 if self.pos_mode == 'long_short_mode':
-                    # Extract side directly from position
-                    raw_side = str(pos.get('side', 'long')).lower()
-                    params['posSide'] = 'short' if 'short' in raw_side else 'long'
+                    params['posSide'] = 'short' if is_pos_short else 'long'
                     # Use actual position margin mode (cross vs isolated)
                     params['tdMode'] = pos.get('marginMode', 'cross')
-                    logging.info(f"[{self.exchange_id}] Closing HEDGE: {symbol} | Side: {raw_side.upper()} | Map to posSide: {params['posSide']} | tdMode: {params['tdMode']}")
+                    logging.info(f"[{self.exchange_id}] Closing HEDGE: {symbol} | Detected Side: {'SHORT' if is_pos_short else 'LONG'} | Map to posSide: {params['posSide']} | tdMode: {params['tdMode']}")
                 else:
                     # Net mode uses reduceOnly
                     params['reduceOnly'] = True
@@ -365,11 +372,24 @@ class Trader:
             return f"FAILED: Closure verification timed out for {symbol}."
 
         except Exception as e:
-            err = str(e)
-            if "51000" in err:
+            raw_err = str(e)
+            logging.error(f"[{self.exchange_id}] Close Error Symbol {symbol}: {raw_err}")
+            
+            if "51000" in raw_err:
+                # FALLBACK: If Hedge mode params failed, try Net mode params once as a safety net
+                if self.exchange_id == 'okx' and 'posSide' in params:
+                    logging.warning(f"[{self.exchange_id}] posSide mismatch. Attempting FALLBACK to Net mode closure...")
+                    try:
+                        fallback_params = {k:v for k,v in params.items() if k != 'posSide'}
+                        fallback_params['reduceOnly'] = True
+                        self.exchange.create_market_order(symbol, side, amount, fallback_params)
+                        return "SUCCESS: Position Closed (via Net Fallback)"
+                    except Exception as fe:
+                        logging.error(f"[{self.exchange_id}] Fallback also failed: {fe}")
+
                 return f"Error: OKX posSide mismatch. Bot Mode: {self.pos_mode}. Check OKX Settings."
-            logging.error(f"[{self.exchange_id}] Atomic Close Error: {err}")
-            return err
+            
+            return raw_err
 
     def execute_flip(self, symbol, current_pos, target_decision, budget_usdt, leverage=3):
         """
@@ -384,17 +404,18 @@ class Trader:
         if "SUCCESS" not in close_res:
             return f"FLIP ABORTED: {close_res}"
             
-        # 2. Wait for exchange margin settlement & verification
+        # 2. Wait for exchange margin settlement & verification (Blocking 1s + Retries)
         time.sleep(1)
-        verification_retries = 3
+        verification_retries = 5
         for i in range(verification_retries):
             remaining = self.get_positions(target_symbol=symbol)
             if not remaining:
+                logging.info(f"[{eid}] Flip Verification: {symbol} is settled (Empty). Proceeding.")
                 break
-            logging.warning(f"[{eid}] Flip Verification: {symbol} still active. Waiting...")
+            logging.warning(f"[{eid}] Flip Verification {i+1}/{verification_retries}: {symbol} still active. Waiting...")
             time.sleep(1)
         else:
-            return f"FLIP ABORTED: Settlement Timeout. Position {symbol} still detected."
+            return f"FLIP ABORTED: Settlement Timeout. Position {symbol} still detected after close."
             
         # 3. OPEN the new position
         open_res = self.execute_order(symbol, target_decision, budget_usdt, leverage)
