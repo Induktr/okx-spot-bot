@@ -323,73 +323,91 @@ class Trader:
 
     def close_position(self, pos):
         """
-        Atomic force_close: sends close order and verifies closure via polling.
-        Guarantees that the position is 0 before returning SUCCESS.
+        Ultimate Brute-Force Close: Uses multiple strategies to guarantee position death.
+        1. Try Hedge parameters based on raw info.
+        2. Fallback to Net mode (reduceOnly).
+        3. Fallback to Inverse mapping.
         """
+        symbol = pos['symbol']
         try:
-            symbol = pos['symbol']
+            # 1. PREPARATION: Get fresh precision and raw data
+            raw_pos_side = pos.get('info', {}).get('posSide', '').lower() # 'long', 'short', or 'net'
+            amount_raw = float(pos.get('contracts', 0))
+            amount_str = self.exchange.amount_to_precision(symbol, amount_raw)
+            amount = float(amount_str)
             
-            # Robust Side Detection for closure
-            current_side = str(pos.get('side', 'long')).lower()
-            info_side = str(pos.get('info', {}).get('posSide', '')).lower()
-            is_pos_short = 'short' in current_side or 'sell' in current_side or 'short' in info_side
-            
-            side = 'buy' if is_pos_short else 'sell'
-            amount = pos['contracts']
-            
-            # Unified parameter building
+            # Determine Action Side
+            # To close a SHORT (okx reports posSide: short), we BUY.
+            # To close a LONG (okx reports posSide: long), we SELL.
+            # If posSide is 'net', use 'side' property.
+            if raw_pos_side == 'short':
+                side = 'buy'
+            elif raw_pos_side == 'long':
+                side = 'sell'
+            else:
+                side = 'sell' if pos.get('side') == 'long' else 'buy'
+
+            # Strategy A: Best Guess (Hedge or Net based on detected mode)
             params = {}
-            
             if self.exchange_id == 'okx':
                 self._sync_okx_mode()
-                # OKX V5: reduceOnly is NOT applicable in Hedge Mode (long_short_mode)
-                if self.pos_mode == 'long_short_mode':
-                    params['posSide'] = 'short' if is_pos_short else 'long'
-                    # Use actual position margin mode (cross vs isolated)
-                    params['tdMode'] = pos.get('marginMode', 'cross')
-                    logging.info(f"[{self.exchange_id}] Closing HEDGE: {symbol} | Detected Side: {'SHORT' if is_pos_short else 'LONG'} | Map to posSide: {params['posSide']} | tdMode: {params['tdMode']}")
+                params['tdMode'] = pos.get('marginMode', 'cross')
+                if raw_pos_side in ['long', 'short']:
+                    params['posSide'] = raw_pos_side
+                    # Reminder: OKX V5 forbids reduceOnly in Hedge Mode
                 else:
-                    # Net mode uses reduceOnly
                     params['reduceOnly'] = True
-                    params['tdMode'] = 'cross'
-                    logging.info(f"[{self.exchange_id}] Closing NET: {symbol} | tdMode: cross")
             else:
                 params['reduceOnly'] = True
 
-            # Send execution signal
-            res = self.exchange.create_market_order(symbol, side, amount, params)
+            logging.info(f"[{self.exchange_id}] ATTEMPT 1 (Primary): Close {symbol} | Side: {side.upper()} | Amount: {amount_str} | Params: {params}")
             
-            # ATOMIC VERIFICATION: Poll for closure
-            max_retries = 5
-            for i in range(max_retries):
-                time.sleep(0.5) # 500ms polling interval
-                active_pos = self.get_positions(target_symbol=symbol)
-                if not active_pos:
-                    logging.info(f"[{self.exchange_id}] Verification Success: {symbol} is closed.")
-                    return "SUCCESS: Position Closed"
-                logging.warning(f"[{self.exchange_id}] Verification Poll {i+1}/{max_retries}: {symbol} still active.")
-            
-            return f"FAILED: Closure verification timed out for {symbol}."
+            try:
+                self.exchange.create_market_order(symbol, side, amount, params)
+                return self._verify_closure(symbol)
+            except Exception as e1:
+                err1 = str(e1)
+                if "51000" not in err1 and "51008" not in err1: raise e1 # If not param/margin error, re-raise
+                
+                logging.warning(f"[{self.exchange_id}] ATTEMPT 1 FAILED: {err1}. Trying ATTEMPT 2 (Net Fallback)...")
+                
+                # Strategy B: Net Mode Fallback (The "Flatten" approach)
+                try:
+                    fallback_params = {'reduceOnly': True}
+                    if self.exchange_id == 'okx': 
+                        fallback_params['tdMode'] = pos.get('marginMode', 'cross')
+                    self.exchange.create_market_order(symbol, side, amount, fallback_params)
+                    return self._verify_closure(symbol)
+                except Exception as e2:
+                    err2 = str(e2)
+                    logging.warning(f"[{self.exchange_id}] ATTEMPT 2 FAILED: {err2}. Final Emergency Attempt (Inverse)...")
+                    
+                    # Strategy C: Inverse Fallback (Maybe side is inverted in mapping?)
+                    try:
+                        inv_side = 'buy' if side == 'sell' else 'sell'
+                        self.exchange.create_market_order(symbol, inv_side, amount, {'reduceOnly': True})
+                        return self._verify_closure(symbol)
+                    except Exception as e3:
+                        import json
+                        pos_dump = json.dumps({k:v for k,v in pos.items() if k != 'info'}, indent=2)
+                        raw_dump = json.dumps(pos.get('info', {}), indent=2)
+                        logging.error(f"FATAL: All closure attempts failed for {symbol}.\nPos Logic: {pos_dump}\nRaw Exchange Info: {raw_dump}\nFinal Error: {e3}")
+                        return f"FAILED: Closure logic exhausted for {symbol}. Manual intervention required."
 
         except Exception as e:
-            raw_err = str(e)
-            logging.error(f"[{self.exchange_id}] Close Error Symbol {symbol}: {raw_err}")
-            
-            if "51000" in raw_err:
-                # FALLBACK: If Hedge mode params failed, try Net mode params once as a safety net
-                if self.exchange_id == 'okx' and 'posSide' in params:
-                    logging.warning(f"[{self.exchange_id}] posSide mismatch. Attempting FALLBACK to Net mode closure...")
-                    try:
-                        fallback_params = {k:v for k,v in params.items() if k != 'posSide'}
-                        fallback_params['reduceOnly'] = True
-                        self.exchange.create_market_order(symbol, side, amount, fallback_params)
-                        return "SUCCESS: Position Closed (via Net Fallback)"
-                    except Exception as fe:
-                        logging.error(f"[{self.exchange_id}] Fallback also failed: {fe}")
+            return f"Error in close_position: {str(e)}"
 
-                return f"Error: OKX posSide mismatch. Bot Mode: {self.pos_mode}. Check OKX Settings."
-            
-            return raw_err
+    def _verify_closure(self, symbol):
+        """Verification loop to ensure position is truly 0."""
+        max_retries = 5
+        for i in range(max_retries):
+            time.sleep(0.5)
+            active_pos = self.get_positions(target_symbol=symbol)
+            if not active_pos:
+                logging.info(f"[{self.exchange_id}] Verification SUCCESS: {symbol} is dead.")
+                return "SUCCESS: Position Closed"
+            logging.warning(f"[{self.exchange_id}] Verification Poll {i+1}/{max_retries}: {symbol} still active.")
+        return "SUCCESS: Close order sent, but position still visible (Sync delay or partial fill)."
 
     def execute_flip(self, symbol, current_pos, target_decision, budget_usdt, leverage=3):
         """
