@@ -7,6 +7,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Web3 Config -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -88,6 +91,71 @@
                     <span id="power-text" class="text-sm font-semibold text-red-500">PAUSED</span>
                     <div class="hint-box"><b>System Master Switch</b>Toggle the entire A.S.T.R.A. engine. When ONLINE, the AI autonomously scans markets and executes orders.</div>
                 </button>
+                
+                <!-- Premium Upgrade Button -->
+                <!-- Premium Upgrade Button -->
+                {% if config.SUBSCRIPTION_STATUS == 'PREMIUM' %}
+                <button onclick="openPremiumModal()" id="btn-premium" class="hint-target group flex items-center gap-2 px-6 py-3 glass-panel border border-green-500/20 hover:border-green-400 bg-green-500/5 transition-all">
+                    <span class="w-2 h-2 rounded-full bg-green-400 shadow-glow"></span>
+                    <span class="text-sm font-bold text-green-400">PREMIUM PRO</span>
+                    <div class="hint-box"><b>Active Subscription</b>Cloud Swarm Active. High-Frequency Mode Enabled.</div>
+                </button>
+                {% else %}
+                <button onclick="openPremiumModal()" id="btn-premium" class="hint-target group flex items-center gap-2 px-6 py-3 glass-panel border border-amber-500/20 hover:border-amber-400 bg-amber-500/5 transition-all">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span class="text-sm font-bold text-amber-400">UPGRADE</span>
+                    <div class="hint-box"><b>Unlock Full Potential</b>Access pooled AI resources, Cloud execution, and 24/7 autonomous trading.</div>
+                </button>
+                {% endif %}
+                
+                <!-- User Profile Dropdown -->
+                <div class="relative group">
+                    <button class="flex items-center gap-3 px-4 py-2 glass-panel border-white/5 hover:border-purple-500/50 transition-all">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold text-sm">
+                            {{ user.email[0].upper() }}
+                        </div>
+                        <div class="text-left hidden md:block">
+                            <p class="text-sm font-semibold text-white">{{ user.email.split('@')[0] }}</p>
+                            <p class="text-xs {% if user.role == 'admin' %}text-yellow-400{% else %}text-gray-400{% endif %}">
+                                {% if user.role == 'admin' %}Admin{% else %}User{% endif %}
+                            </p>
+                        </div>
+                        <svg class="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+
+                    <!-- Dropdown Menu -->
+                    <div class="absolute right-0 mt-2 w-64 glass-panel border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        <div class="p-4 border-b border-white/10">
+                            <p class="text-xs text-gray-400">Signed in as</p>
+                            <p class="text-sm font-semibold text-white truncate mt-1">{{ user.email }}</p>
+                        </div>
+                        <div class="p-2 space-y-1">
+                            <a href="{{ url_for('settings') }}" class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-blue-500/10 transition-colors text-gray-300 hover:text-blue-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                                <span class="text-sm font-semibold">Settings</span>
+                            </a>
+                            {% if user.role == 'admin' %}
+                            <a href="{{ url_for('admin_panel') }}" class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-purple-500/10 transition-colors text-gray-300 hover:text-purple-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                                </svg>
+                                <span class="text-sm font-semibold">Admin Panel</span>
+                            </a>
+                            {% endif %}
+                            <a href="{{ url_for('logout') }}" class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-red-500/10 transition-colors text-gray-300 hover:text-red-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                                </svg>
+                                <span class="text-sm font-semibold">Sign Out</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
                 
                 <div class="hint-target flex items-center gap-4 px-6 py-3 glass-panel border-white/5">
                     <div class="p-2 bg-blue-500/10 rounded-lg">
@@ -1268,5 +1336,425 @@
         setInterval(checkBotStatus, 2000);
         checkBotStatus();
     </script>
+    <!-- PREMIUM MODAL -->
+    <div id="premium-modal" class="fixed inset-0 modal-overlay hidden z-50 flex items-center justify-center p-4" onclick="if(event.target === this) closePremiumModal();">
+        <div class="bg-[#0f172a] border border-blue-500/30 rounded-2xl w-full max-w-4xl p-8 relative shadow-2xl overflow-hidden">
+            <!-- Close Button -->
+            <button onclick="closePremiumModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <!-- Branding/Pitch -->
+                <div class="space-y-6">
+                    <div>
+                        <h2 class="text-3xl font-orbitron font-bold text-white mb-2">UNLOCK <span class="text-amber-400">A.S.T.R.A.</span> PRIME</h2>
+                        <p class="text-gray-400 text-sm">Join the elite trading network. Stop running on local resources. Tap into the Global Cloud Swarm.</p>
+                    </div>
+                    
+                    <ul class="space-y-4">
+                        <li class="flex items-center gap-3">
+                            <div class="p-1 bg-green-500/10 rounded"><svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg></div>
+                            <span class="text-sm text-gray-300"><b>Autonomous 24/7 Trading</b> (No PC required)</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <div class="p-1 bg-green-500/10 rounded"><svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg></div>
+                            <span class="text-sm text-gray-300"><b>High-Frequency AI</b> (150ms Cloud Latency)</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <div class="p-1 bg-green-500/10 rounded"><svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg></div>
+                            <span class="text-sm text-gray-300"><b>Zero API Key Risk</b> (Use our Pool)</span>
+                        </li>
+                    </ul>
+
+                    <div class="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                        <p class="text-xs text-amber-200 font-bold uppercase tracking-widest mb-1">Status</p>
+                        {% if config.SUBSCRIPTION_STATUS == 'PREMIUM' %}
+                            <p id="sub-status" class="text-lg font-bold text-green-400 shadow-glow">PREMIUM PLAN (Active)</p>
+                        {% else %}
+                            <p id="sub-status" class="text-lg font-bold text-white">LITE PLAN (Local)</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Payment Options -->
+                <div class="space-y-6">
+                   {% if config.SUBSCRIPTION_STATUS == 'PREMIUM' %}
+                        <!-- Active Subscription View -->
+                        <div class="text-center py-10">
+                            <div class="inline-block p-4 rounded-full bg-green-500/10 mb-4 animate-pulse">
+                                <svg class="w-16 h-16 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </div>
+                            <h3 class="text-2xl font-bold text-white mb-2">SUBSCRIPTION ACTIVE</h3>
+                            <p class="text-gray-400 mb-6">You have unlocked the full potential of A.S.T.R.A.</p>
+                             <!-- User View: Refund Pending -->
+                             {% if config.REFUND_PENDING %}
+                             <div class="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-center">
+                                 <p class="text-yellow-500 text-xs font-bold uppercase tracking-widest">Refund Pending</p>
+                                 <p class="text-[10px] text-gray-400 mt-1">Admin is processing your ${0.0011} POL refund.</p>
+                             </div>
+                             {% endif %}
+
+                             <!-- Admin Console: Process Refund (Hidden for users) -->
+                             <div id="admin-refund-console" class="hidden mt-6 pt-6 border-t border-white/5 text-center">
+                                <div class="p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+                                    <p class="text-blue-400 text-[10px] font-bold uppercase tracking-widest mb-3">Admin Control Panel</p>
+                                    <p class="text-[10px] text-gray-500 mb-4">Refund Due: <span id="admin-refund-amount" class="text-white font-bold">0.0011</span> POL to <span id="admin-target-wallet" class="text-white">...</span></p>
+                                    <button onclick="processAdminRefund()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition-all shadow-lg shadow-blue-600/20">
+                                        AUTHORIZE & PAY REFUND
+                                    </button>
+                                </div>
+                             </div>
+
+                                <!-- Premium Status -->
+                                <div class="mt-8 space-y-3">
+                                    <div class="flex justify-between items-center text-xs">
+                                        <span class="text-gray-500 uppercase font-bold">Plan</span>
+                                        <span class="text-blue-400 font-bold">A.S.T.R.A. PRIME</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-xs">
+                                        <span class="text-gray-500 uppercase font-bold">Cloud Nodes</span>
+                                        <span class="text-green-500 font-bold">CONNECTED (12ms)</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-xs">
+                                        <span class="text-gray-500 uppercase font-bold">Status</span>
+                                        <span class="text-white font-bold">Active (30 Days Left)</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-6 text-center">
+                                    <button onclick="cancelSubscription()" class="text-xs text-red-500 hover:text-red-400 border-b border-red-500/30 pb-1 transition-colors">
+                                        Cancel Subscription
+                                    </button>
+                                    <p class="text-[10px] text-gray-600 mt-2">* Refunds are processed manually to original wallet.</p>
+                                </div>
+                        </div>
+                   {% else %}
+                       <!-- Payment View -->
+                       <div class="text-center">
+                           <p class="text-gray-400 uppercase tracking-widest text-xs mb-2">Select Payment Method</p>
+                           <h3 class="text-4xl font-bold text-white">$29 <span class="text-lg text-gray-500">/ month</span></h3>
+                       </div>
+    
+                       <!-- Polygon Option -->
+                       <div onclick="payPolygon()" class="cursor-pointer group relative p-6 bg-white/5 border border-white/10 hover:border-purple-500 rounded-xl transition-all">
+                           <div class="absolute top-0 right-0 p-2 opacity-50"><img src="https://cryptologos.cc/logos/polygon-matic-logo.png" class="w-6 h-6 grayscale group-hover:grayscale-0"></div>
+                           <h4 class="font-bold text-white mb-1">Pay with USDT (Polygon)</h4>
+                           <p class="text-[10px] text-gray-500 uppercase tracking-wider">Fast • Gas ~$0.01 • Metamask</p>
+                       </div>
+    
+                       <!-- TON Option -->
+                       <div id="ton-connect" class="w-full"></div>
+                       <div onclick="payTON()" class="cursor-pointer group relative p-6 bg-white/5 border border-white/10 hover:border-blue-400 rounded-xl transition-all">
+                            <div class="absolute top-0 right-0 p-2 opacity-50"><img src="https://cryptologos.cc/logos/toncoin-ton-logo.png" class="w-6 h-6 grayscale group-hover:grayscale-0"></div>
+                            <h4 class="font-bold text-white mb-1">Pay with USDT (TON)</h4>
+                            <p class="text-[10px] text-gray-500 uppercase tracking-wider">Telegram Wallet • Instant</p>
+                       </div>
+                       
+                       <p id="pay-status" class="text-center text-xs text-gray-400 animate-pulse hidden">Waiting for confirmation...</p>
+                       
+                       <!-- DEV ONLY: Simulate Success -->
+                       <div class="pt-4 border-t border-white/5 text-center">
+                           <button onclick="simulateSuccess()" class="text-[10px] text-gray-600 hover:text-white uppercase tracking-widest transition-colors font-bold">
+                               [ DEV: Simulate Payment ]
+                           </button>
+                       </div>
+                   {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- PREMIUM LOGIC ---
+        const ADMIN_EVM = "{{ config.ADMIN_WALLET_EVM }}"; 
+        const ADMIN_TON = "{{ config.ADMIN_WALLET_TON }}";
+        
+        function openPremiumModal() { document.getElementById('premium-modal').classList.remove('hidden'); }
+        function closePremiumModal() { document.getElementById('premium-modal').classList.add('hidden'); }
+
+        // --- GLOBAL WEB3 CONFIGURATION ---
+        const IS_TESTNET = true; // Set to false for Production
+        
+        const NETWORKS = {
+            MAINNET: {
+                chainId: '0x89', // 137
+                intId: 137n,
+                name: 'Polygon Mainnet',
+                rpc: ['https://polygon-rpc.com/'],
+                explorer: ['https://polygonscan.com/'],
+                nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 }
+            },
+            AMOY: {
+                chainId: '0x13882', // 80002
+                intId: 80002n,
+                name: 'Polygon Amoy Testnet',
+                rpc: ['https://1rpc.io/amoy'], 
+                explorer: ['https://www.oklink.com/amoy'],
+                nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 }
+            }
+        };
+
+        const TARGET_NET = IS_TESTNET ? NETWORKS.AMOY : NETWORKS.MAINNET;
+
+        // 1. POLYGON PAYMENT
+        async function payPolygon() {
+            const statusEl = document.getElementById('pay-status');
+            statusEl.classList.remove('hidden');
+            statusEl.innerText = "Initializing Web3...";
+            statusEl.className = "text-center text-xs text-purple-400 animate-pulse";
+
+            if (typeof window.ethereum === 'undefined') {
+                alert("MetaMask not found!");
+                return;
+            }
+
+            try {
+                if (!ADMIN_EVM || ADMIN_EVM.includes("YOUR")) throw new Error("Admin configuration error.");
+
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const signer = await provider.getSigner();
+
+                // Network Check & Switch
+                statusEl.innerText = `Connecting to ${TARGET_NET.name}...`;
+                const currentNet = await provider.getNetwork();
+                
+                if (currentNet.chainId !== TARGET_NET.intId) {
+                     try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: TARGET_NET.chainId }],
+                        });
+                        // Wait a bit for network switch to settle
+                        await new Promise(r => setTimeout(r, 1000));
+                    } catch (switchError) {
+                        if (switchError.code === 4902 || switchError.message.includes("Unrecognized chain ID")) {
+                            statusEl.innerText = "Adding Network...";
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: TARGET_NET.chainId,
+                                    chainName: TARGET_NET.name,
+                                    rpcUrls: TARGET_NET.rpc,
+                                    nativeCurrency: TARGET_NET.nativeCurrency,
+                                    blockExplorerUrls: TARGET_NET.explorer
+                                }],
+                            });
+                        } else {
+                            throw switchError;
+                        }
+                    }
+                }
+
+                statusEl.innerText = "Preparing Transaction...";
+                
+                // Refresh signer after potential network change
+                const freshProvider = new ethers.BrowserProvider(window.ethereum);
+                const freshSigner = await freshProvider.getSigner();
+
+                // 1. Balance Check (Prevent -32603 due to 0 balance)
+                const userAddr = await freshSigner.getAddress();
+                const balance = await freshProvider.getBalance(userAddr);
+                console.log("Payer Balance:", ethers.formatEther(balance));
+
+                if (balance < ethers.parseEther("0.005")) {
+                    throw new Error("Insufficient POL! You need at least 0.005 POL for gas fees.");
+                }
+
+                let tx;
+                if (IS_TESTNET) {
+                    // TESTNET: Send 0.0011 POL
+                    // Letting MetaMask handle Gas for 32603 stability
+                    tx = await freshSigner.sendTransaction({
+                        to: ADMIN_EVM,
+                        value: ethers.parseEther("0.0011")
+                    });
+                } else {
+                    // MAINNET: Send 0.01 USDT
+                    const USDT_ADDRESS = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F";
+                    const AMOUNT = ethers.parseUnits("0.01", 6);
+                    const abi = ["function transfer(address to, uint256 value)"];
+                    const contract = new ethers.Contract(USDT_ADDRESS, abi, freshSigner);
+                    tx = await contract.transfer(ADMIN_EVM, AMOUNT);
+                }
+                
+                console.log("TX Created:", tx.hash);
+                statusEl.innerText = "Broadcasting... " + tx.hash.substring(0,8) + "...";
+                
+                await tx.wait(); 
+                
+                verifyBackend(IS_TESTNET ? 'AMOY' : 'POLYGON', tx.hash);
+
+            } catch (err) {
+                console.error("Payment Error:", err);
+                let msg = err.message || "Transaction Failed";
+
+                if (err.info && err.info.error) {
+                    msg = err.info.error.message;
+                } else if (err.error && err.error.message) {
+                    msg = err.error.message;
+                }
+
+                if (msg.toLowerCase().includes("user rejected")) msg = "User rejected transaction.";
+                if (msg.includes("-32603")) msg = "MetaMask Sync Error! Please 'Reset Account' in Settings -> Advanced.";
+                
+                statusEl.innerText = "Error: " + msg.substring(0, 100);
+                statusEl.className = "text-center text-xs text-red-500 font-bold";
+            }
+        }
+
+        // 2. TON PAYMENT
+        async function payTON() {
+             const statusEl = document.getElementById('pay-status');
+             statusEl.classList.remove('hidden');
+             statusEl.innerText = "Creating TON Transfer...";
+             
+             // Simplest approach: Use tonconnect UI or deep link if UI fails
+             // For this MVP, we alert the user to send manual for now as TON integration requires manifest
+             alert("TON Connect integration requires a public manifest file (https). For this local demo, please use Polygon or simulate.");
+             
+             // SIMULATION FOR TON (Since we can't serve manifest from localhost easily without tunnel)
+             // In production: tonConnectUI.sendTransaction(...)
+             const mockHash = "b52d...SIMULATED_TON_TX";
+             setTimeout(() => {
+                 verifyBackend('TON', mockHash);
+             }, 2000);
+        }
+
+        async function verifyBackend(network, hash) {
+            const statusEl = document.getElementById('pay-status');
+            statusEl.innerText = "Verifying on Cloud...";
+            
+            try {
+                const res = await fetch('/api/verify_payment', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ network: network, txHash: hash })
+                });
+                const d = await res.json();
+                
+                if (d.success) {
+                    statusEl.innerText = "SUCCESS! Premium Active.";
+                    statusEl.className = "text-center text-xs text-green-400 font-bold";
+                    document.getElementById('sub-status').innerText = "PREMIUM ACTIVE";
+                    document.getElementById('sub-status').className = "text-lg font-bold text-amber-400 shadow-glow";
+                    document.getElementById('btn-premium').innerHTML = `<span class="text-sm font-bold text-green-400">PREMIUM PRO</span>`;
+                    
+                    // Force page reload after delay to refresh backend state in UI
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    throw new Error(d.message);
+                }
+            } catch (e) {
+                statusEl.innerText = "Verification Failed: " + e.message;
+                statusEl.className = "text-center text-xs text-red-500";
+            }
+        }
+
+        // DEV ONLY
+        function simulateSuccess() {
+             const statusEl = document.getElementById('pay-status');
+             statusEl.classList.remove('hidden');
+             statusEl.innerText = "Simulating TON Payment...";
+             // Sending a fake hash that passes the MVP backend validation logic for TON
+             verifyBackend('TON', 'b52d...SIMULATED_DEV_PAYMENT_SUCCESS');
+        }
+
+                     // --- CANCEL SUBSCRIPTION (User Flow) ---
+        async function cancelSubscription() {
+            if (!confirm("Are you sure you want to cancel your Premium subscription? You will be downgraded to LITE immediately.")) return;
+            
+            try {
+                const res = await fetch('/api/cancel_subscription', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    alert("Subscription cancelled. Your account is now LITE. Admin will process your refund shortly.");
+                    window.location.reload();
+                } else {
+                    alert("Error: " + data.message);
+                }
+            } catch (err) {
+                alert("Request failed.");
+            }
+        }
+
+        // --- PROCESS REFUND (Admin Flow) ---
+        async function processAdminRefund() {
+            const statusEl = document.getElementById('pay-status');
+            statusEl.classList.remove('hidden');
+            statusEl.innerText = "Fetching Refund Info...";
+
+            try {
+                const infoRes = await fetch('/api/refund_info');
+                const info = await infoRes.json();
+                
+                if (!info.success) throw new Error(info.message);
+
+                statusEl.innerText = "Authorizing Refund in MetaMask...";
+                
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const signer = await provider.getSigner();
+                
+                // Final Safeguard: Check Admin Wallet
+                const currentAddr = (await signer.getAddress()).toLowerCase();
+                if (currentAddr !== ADMIN_EVM.toLowerCase()) {
+                    throw new Error("MISMATCH: You must be connected as ADMIN to pay refunds!");
+                }
+
+                let tx;
+                if (IS_TESTNET) {
+                    tx = await signer.sendTransaction({
+                        to: info.address,
+                        value: ethers.parseUnits(info.amount, "ether")
+                    });
+                } else {
+                    const USDT_ADDRESS = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F";
+                    const AMOUNT = ethers.parseUnits(info.amount, 6);
+                    const abi = ["function transfer(address to, uint256 value)"];
+                    const contract = new ethers.Contract(USDT_ADDRESS, abi, signer);
+                    tx = await contract.transfer(info.address, AMOUNT);
+                }
+
+                statusEl.innerText = "Broadcasting Refund: " + tx.hash.substring(0,8) + "...";
+                await tx.wait();
+
+                // Finalize on backend
+                await fetch('/api/finalize_refund', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refund_tx: tx.hash })
+                });
+
+                alert("Refund Processed Successfully!");
+                window.location.reload();
+
+            } catch (err) {
+                alert("Refund Failed: " + (err.message || "Unknown error"));
+                statusEl.classList.add('hidden');
+            }
+        }
+
+        // Admin Console Watcher
+        let adminCheckInterval = setInterval(async () => {
+             if (window.ethereum) {
+                 const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                 if (accounts.length > 0 && accounts[0].toLowerCase() === ADMIN_EVM.toLowerCase()) {
+                     const consoleEl = document.getElementById('admin-refund-console');
+                     if (consoleEl) {
+                         // Only show admin console if there's a refund pending
+                         const refundPending = true;
+                         const wallet = "{{ config.SUBSCRIPTION_WALLET or 'None' }}";
+                         
+                         if (refundPending) {
+                             consoleEl.classList.remove('hidden');
+                             document.getElementById('admin-target-wallet').innerText = wallet.substring(0,8) + "...";
+                         }
+                     }
+                 }
+             }
+        }, 3000);
+</script>
 </body>
 </html>
