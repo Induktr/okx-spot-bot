@@ -8,13 +8,27 @@ class Trader:
     """
     Hands module for A.S.T.R.A.
     Universal Trader supporting OKX, Binance, Bybit.
+    Can be initialized with custom user API keys or fallback to global config.
     """
-    def __init__(self, exchange_id: str = 'okx'):
+    def __init__(self, exchange_id: str = 'okx', api_key: str = None, secret: str = None, 
+                 password: str = None, user_id: int = None, user_email: str = None):
         self.exchange_id = exchange_id
+        self.user_id = user_id
+        self.user_email = user_email
+        
         exchange_class = getattr(ccxt, exchange_id)
         
-        # Select correct keys based on ID
-        keys = self._get_keys(exchange_id)
+        # Use custom keys if provided, otherwise fallback to config
+        if api_key and secret:
+            keys = {
+                'apiKey': api_key,
+                'secret': secret,
+                'password': password
+            }
+            logging.info(f"Trader: Using custom API keys for user {user_email or 'unknown'}")
+        else:
+            keys = self._get_keys(exchange_id)
+            logging.info(f"Trader: Using global config keys for {exchange_id}")
         
         self.exchange = exchange_class({
             'apiKey': keys['apiKey'],
@@ -61,12 +75,13 @@ class Trader:
 
         # Load Markets once
         try:
-            logging.info(f"Trader: [{exchange_id}] initialized. (Hedge: {'YES' if self.pos_mode == 'long_short_mode' else 'NO'})")
+            logging.info(f"Trader: [{exchange_id}] initialized for {user_email or 'global'}. (Hedge: {'YES' if self.pos_mode == 'long_short_mode' else 'NO'})")
             self.exchange.load_markets()
         except Exception as e:
             logging.error(f"Trader: Failed to load markets for {exchange_id}: {e}")
 
     def _get_keys(self, eid):
+        """Fallback to global config keys if no custom keys provided."""
         if eid == 'binance':
             return {'apiKey': config.BINANCE_API_KEY, 'secret': config.BINANCE_SECRET}
         if eid == 'bybit':

@@ -1,4 +1,5 @@
 import os
+import time
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
@@ -61,6 +62,17 @@ class Config(BaseSettings):
     BYBIT_API_KEY: str = Field("", env="BYBIT_API_KEY")
     BYBIT_SECRET: str = Field("", env="BYBIT_SECRET")
 
+    # --- Web3 & Subscription Config ---
+    ADMIN_WALLET_EVM: str = "0x6fe73e367430def2ada5afd5612d4b7a07737967" # User must replace this
+    ADMIN_WALLET_TON: str = "EQ_YOUR_TON_WALLET_HERE"    # User must replace this
+    
+    # Subscription State
+    SUBSCRIPTION_STATUS: str = "LITE" # 'LITE' or 'PREMIUM'
+    SUBSCRIPTION_EXPIRY: float = 0.0   # Timestamp
+    SUBSCRIPTION_WALLET: str | None = None # Address of the payer for refund
+    REFUND_PENDING: bool = False      # Track if a refund is owed to the user
+    ADMIN_PRIVATE_KEY: str | None = None    # Loaded from ENV
+
     # Feature 5: Telegram Command Center
     TELEGRAM_TOKEN: str = Field("", env="TELEGRAM_TOKEN")
     TELEGRAM_CHAT_ID: str = Field("", env="TELEGRAM_CHAT_ID")
@@ -118,9 +130,35 @@ class Config(BaseSettings):
                 self.TELEGRAM_CHAT_ID = data.get("tg_chat_id", self.TELEGRAM_CHAT_ID)
                 self.MAX_LEVERAGE = data.get("max_leverage", 10)
                 self.TG_SIGNALS_ACTIVE = data.get("tg_signals_active", True)
+                
+                
+                # Subscription Persistence
+                self.SUBSCRIPTION_STATUS = data.get("subscription_status", "LITE")
+                self.SUBSCRIPTION_EXPIRY = data.get("subscription_expiry", 0.0)
+                self.SUBSCRIPTION_WALLET = data.get("subscription_wallet", None) # Store payer address for refunds
+                self.REFUND_PENDING = data.get("refund_pending", False)
+                
+                # Admin Key for AUTOMATED REFUNDS (TESTING ONLY)
+                # DANGER: Never expose this in client-side code / build
+                self.ADMIN_PRIVATE_KEY = os.getenv("ADMIN_PRIVATE_KEY", None)
+                
+                # Verify Expiry Immediately
+                self.check_subscription_expiry()
+                
         except Exception:
             self.ACTIVE_EXCHANGES = ["okx"]
             self.SANDBOX_MODES = {"okx": True, "binance": False, "bybit": False}
+
+    def check_subscription_expiry(self):
+        """Checks if subscription has expired and reverts to LITE if needed."""
+        if self.SUBSCRIPTION_STATUS == "PREMIUM" and self.SUBSCRIPTION_EXPIRY > 0:
+            # Buffer of 60 seconds to avoid edge cases
+            if time.time() > self.SUBSCRIPTION_EXPIRY:
+                import logging
+                logging.warning("⚠️ PREMIUM SUBSCRIPTION EXPIRED. Reverting to LITE.")
+                self.SUBSCRIPTION_STATUS = "LITE"
+                self.SUBSCRIPTION_EXPIRY = 0.0
+                self.save_settings()
 
     def save_settings(self):
         """Saves current settings to data/settings.json."""
@@ -145,7 +183,11 @@ class Config(BaseSettings):
                 "tg_token": self.TELEGRAM_TOKEN,
                 "tg_chat_id": self.TELEGRAM_CHAT_ID,
                 "max_leverage": self.MAX_LEVERAGE,
-                "tg_signals_active": self.TG_SIGNALS_ACTIVE
+                "tg_signals_active": self.TG_SIGNALS_ACTIVE,
+                "subscription_status": self.SUBSCRIPTION_STATUS,
+                "subscription_expiry": self.SUBSCRIPTION_EXPIRY,
+                "subscription_wallet": self.SUBSCRIPTION_WALLET,
+                "refund_pending": self.REFUND_PENDING
             }, f, indent=4)
     
     # Trading Settings

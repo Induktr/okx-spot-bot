@@ -90,8 +90,13 @@ class AIAgent:
         provider = config.AI_PROVIDER
         logging.info(f"AI: Using Brain Provider [{provider.upper()}]")
         
-        # Cloud Override
-        if config.USE_CLOUD_AI:
+        # Cloud / Premium Routing
+        # Premium users get priority access to the Cloud Swarm
+        is_premium = config.SUBSCRIPTION_STATUS == "PREMIUM"
+        
+        if is_premium or config.USE_CLOUD_AI:
+            if not is_premium:
+                 logging.warning("⚠️ LITE USER accessing Cloud. Low priority.")
             result = self._analyze_cloud(headlines, balance, snapshot, market_mood)
         elif provider == "openai" or provider == "deepseek":
             result = self._analyze_openai_compatible(headlines, balance, snapshot, market_mood)

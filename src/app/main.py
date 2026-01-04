@@ -10,6 +10,7 @@ from src.shared.utils.logger import scribe
 from src.shared.utils.portfolio_tracker import portfolio_tracker
 from src.shared.providers.telegram_provider import telegram_bot
 from src.shared.utils.report_parser import report_parser
+from src.features.trade_executor.user_trader import user_trading_manager
 import datetime
 
 # Configure internal logging
@@ -165,8 +166,8 @@ def astra_cycle():
             scribe.log_cycle(analysis, "Cycle complete: No action.")
             return
 
-        if decision in ["BUY", "SELL"] and confidence < 7:
-            msg = f"AI Confidence ({confidence}/10) is not high enough for a new trade (Need >= 7). Standing by."
+        if decision in ["BUY", "SELL"] and confidence < 8:
+            msg = f"AI Confidence ({confidence}/10) is not high enough for a new trade (Need >= 8). Standing by."
             logging.info(msg)
             scribe.log_cycle(analysis, f"Cycle complete: {msg}")
             return
@@ -280,6 +281,10 @@ def main():
     except Exception as e:
         logging.error(f"Failed to start dashboard: {e}")
     
+    # Sync user traders on startup
+    logging.info("Syncing premium user traders...")
+    user_trading_manager.sync_users()
+    
     # Run once at startup
     astra_cycle()
     
@@ -294,7 +299,13 @@ def main():
             logging.info("⚡ Immediate Cycle triggered by User (UI Force)")
             config.FORCE_CYCLE = False # Reset flag
             astra_cycle()
-            
+        
+        # Sync user traders every cycle (check for new premium users)
+        user_trading_manager.sync_users()
+        
+        # Execute trading cycles for all active premium users
+        user_trading_manager.execute_all_cycles()
+        
         schedule.run_pending()
         time.sleep(1)
 

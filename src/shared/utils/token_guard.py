@@ -16,8 +16,12 @@ class TokenGuard:
 
     def wait_if_needed(self):
         """
-        Ensures a safe cooldown between AI requests to prevent 429 errors.
+        Ensures a safe cooldown between AI requests.
+        Premium users bypass this Limit (High-Frequency).
         """
+        if config.SUBSCRIPTION_STATUS == "PREMIUM":
+            return
+
         with self.lock:
             current_time = time.time()
             elapsed = current_time - self.last_call_time
