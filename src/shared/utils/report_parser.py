@@ -22,7 +22,15 @@ class ReportParser:
             return []
 
         filepath = os.path.join(self.report_dir, filename)
+        
+        # Optimization: Only read the last 100KB of the report file
+        # This prevents slowdowns as the file grows to megabytes
+        file_size = os.path.getsize(filepath)
+        buffer_size = 100 * 1024 # 100 KB
+        
         with open(filepath, "r", encoding="utf-8") as f:
+            if file_size > buffer_size:
+                f.seek(file_size - buffer_size)
             content = f.read()
 
         # Split by horizontal rule

@@ -589,136 +589,165 @@
         let performanceChart;
         let lastFullData = [];
         let exchangeBalances = {};
+        
+        // State tracking to prevent redundant DOM updates
+        let dashboardState = {
+            balance: null,
+            posCount: null,
+            sentimentScore: null,
+            historyHash: "",
+            symbolsHash: "",
+            positionsHash: "",
+            logsHash: "",
+            botActive: null,
+            currentExchange: null,
+            isDemo: null
+        };
 
         async function updateDashboard() {
             try {
                 const response = await fetch('/api/data');
                 const data = await response.json();
+                
+                if (data.status === "loading") return;
+
                 lastFullData = data.entries;
                 exchangeBalances = data.exchange_balances || {};
 
-                // Update Balance & Counters
-                const balanceEl = document.getElementById('total-balance');
-                if (balanceEl) balanceEl.innerText = `${data.balance.toFixed(2)} USDT`;
+                // Execute UI tasks concurrently but spread across frames
+                const tasks = [
+                    updateCoreMetrics(data),
+                    updateExchangeContext(data),
+                    renderHistoryTask(data.history),
+                    renderSymbolsTask(data.symbols),
+                    renderPositionsTask(data.positions),
+                    renderLogsTask(data.entries, data.bot_active),
+                    renderAnalyticsTask(data.analytics),
+                    updateChartsTask(data.entries)
+                ];
+
+                await Promise.all(tasks.map(t => t.catch(e => console.warn("Task error:", e))));
+
+            } catch (err) {
+                console.warn("Dashboard sync deferred...");
+            }
+        }
+
+        async function updateCoreMetrics(data) {
+            if (dashboardState.balance !== data.balance) {
+                safeSetText('total-balance', `${data.balance.toFixed(2)} USDT`);
+                dashboardState.balance = data.balance;
+            }
+            if (dashboardState.posCount !== data.positions.length) {
+                safeSetText('pos-count', data.positions.length);
+                dashboardState.posCount = data.positions.length;
+            }
+        }
+
+        async function updateExchangeContext(data) {
+            const currentExchange = data.active_exchanges && data.active_exchanges.length > 0 ? data.active_exchanges[0] : 'okx';
+            const isDemo = data.sandbox_modes[currentExchange];
+            
+            if (dashboardState.currentExchange !== currentExchange || dashboardState.isDemo !== isDemo) {
+                const exSelect = document.getElementById('exchange-select');
+                if (exSelect) exSelect.value = currentExchange;
                 
-                const posCountEl = document.getElementById('pos-count');
-                if (posCountEl) posCountEl.innerText = data.positions.length;
-
-                // Update Sentiment Widgets
-                if (data.entries && data.entries.length > 0) {
-                    const latest = data.entries[0];
-                    document.getElementById('market-sentiment').innerText = latest.score;
-                    
-                    let label = "Neutral Integration";
-                    let color = "text-blue-400";
-                    if (latest.score >= 8) { label = "Strong Bullish"; color = "text-green-400"; }
-                    else if (latest.score >= 6) { label = "Bullish Momentum"; color = "text-green-300"; }
-                    else if (latest.score <= 3) { label = "Fear / Panic Bearish"; color = "text-red-500"; }
-                    else if (latest.score <= 4) { label = "Bearish Pressure"; color = "text-red-400"; }
-                    
-                    const labelEl = document.getElementById('sentiment-label');
-                    labelEl.innerText = label;
-                    labelEl.className = `text-[10px] ${color} font-bold uppercase pb-1 tracking-widest`;
-                }
-
-                // Update Exchange Select
-                const currentExchange = data.active_exchanges && data.active_exchanges.length > 0 ? data.active_exchanges[0] : 'okx';
-                document.getElementById('exchange-select').value = currentExchange;
-
-                // Update Demo Toggle
-                const isDemo = data.sandbox_modes[currentExchange];
                 const toggle = document.getElementById('demo-toggle');
-                toggle.checked = isDemo;
-                document.getElementById('mode-status').innerText = isDemo ? "DEMO MODE (SANDBOX)" : "REAL TRADING (LIVE)";
-                document.getElementById('mode-status').className = isDemo ? "text-[11px] font-bold text-blue-400" : "text-[11px] font-bold text-red-500";
+                if (toggle) toggle.checked = isDemo;
                 
-                // Update Power Button
-                const powerBtn = document.getElementById('btn-power');
-                const powerInd = document.getElementById('power-indicator');
-                const powerTxt = document.getElementById('power-text');
-                if (data.bot_active) {
-                    powerInd.className = "w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]";
-                    powerTxt.innerText = "ONLINE";
-                    powerTxt.className = "text-sm font-semibold text-green-500";
-                } else {
-                    powerInd.className = "w-3 h-3 bg-red-500 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.5)]";
-                    powerTxt.innerText = "PAUSED";
-                    powerTxt.className = "text-sm font-semibold text-red-500";
+                const modeStatus = document.getElementById('mode-status');
+                if (modeStatus) {
+                    modeStatus.innerText = isDemo ? "DEMO MODE (SANDBOX)" : "REAL TRADING (LIVE)";
+                    modeStatus.className = isDemo ? "text-[11px] font-bold text-blue-400" : "text-[11px] font-bold text-red-500";
                 }
+                dashboardState.currentExchange = currentExchange;
+                dashboardState.isDemo = isDemo;
+            }
+            
+            if (dashboardState.botActive !== data.bot_active) {
+                updatePowerUI(data.bot_active);
+                dashboardState.botActive = data.bot_active;
+            }
+        }
 
-                // Update History List
-                const historyContainer = document.getElementById('history-container');
-                if (data.history && data.history.length > 0) {
-                    historyContainer.innerHTML = data.history.map(t => `
-                        <tr>
-                            <td class="p-3 font-bold text-gray-400">${t.exchange}</td>
-                            <td class="p-3 font-bold">${t.symbol}</td>
-                            <td class="p-3">
-                                <span class="${t.side === 'buy' ? 'text-green-400' : 'text-red-400'} font-bold uppercase">${t.side}</span>
-                            </td>
-                            <td class="p-3 text-white">${t.price.toFixed(2)}</td>
-                            <td class="p-3 text-gray-400">${t.amount.toFixed(4)}</td>
-                            <td class="p-3 font-bold text-blue-400">${t.cost.toFixed(2)} USDT</td>
-                             <td class="p-3 text-gray-500">${new Date(t.timestamp).toLocaleTimeString()}</td>
-                        </tr>
-                    `).join('');
-                } else {
-                    historyContainer.innerHTML = '<tr><td colspan="7" class="p-10 text-center text-gray-600 font-bold uppercase tracking-widest italic">No trades recorded yet</td></tr>';
-                }
+        async function renderHistoryTask(history) {
+            const currentHash = JSON.stringify(history);
+            if (dashboardState.historyHash === currentHash) return;
+            
+            const container = document.getElementById('history-container');
+            if (!container) return;
 
-                // Update Symbols List
-                const symbolsList = document.getElementById('symbols-list');
-                symbolsList.innerHTML = data.symbols.map(s => `
-                    <div class="flex justify-between items-center bg-white/5 p-2 rounded group">
-                        <span class="text-[10px] font-mono text-blue-300">${s}</span>
-                        <button onclick="deleteSymbol('${s}')" class="text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"></path></svg>
-                        </button>
+            if (history && history.length > 0) {
+                container.innerHTML = history.map(t => `
+                    <tr>
+                        <td class="p-3 font-bold text-gray-400">${t.exchange}</td>
+                        <td class="p-3 font-bold">${t.symbol}</td>
+                        <td class="p-3"><span class="${t.side === 'buy' ? 'text-green-400' : 'text-red-400'} font-bold uppercase">${t.side}</span></td>
+                        <td class="p-3 text-white">${t.price.toFixed(2)}</td>
+                        <td class="p-3 text-gray-400">${t.amount.toFixed(4)}</td>
+                        <td class="p-3 font-bold text-blue-400">${t.cost.toFixed(2)} USDT</td>
+                        <td class="p-3 text-gray-500">${new Date(t.timestamp).toLocaleTimeString()}</td>
+                    </tr>`).join('');
+            } else {
+                container.innerHTML = '<tr><td colspan="7" class="p-10 text-center text-gray-600 font-bold uppercase tracking-widest italic">No trades recorded yet</td></tr>';
+            }
+            dashboardState.historyHash = currentHash;
+        }
+
+        async function renderSymbolsTask(symbols) {
+            const currentHash = JSON.stringify(symbols);
+            if (dashboardState.symbolsHash === currentHash) return;
+            
+            const list = document.getElementById('symbols-list');
+            if (!list) return;
+
+            list.innerHTML = symbols.map(s => `
+                <div class="flex justify-between items-center bg-white/5 p-2 rounded group border border-white/0 hover:border-red-500/20 transition-all">
+                    <span class="text-[10px] font-mono text-blue-300">${s}</span>
+                    <button onclick="deleteSymbol('${s}')" class="text-red-500/50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>`).join('');
+            dashboardState.symbolsHash = currentHash;
+        }
+
+        async function renderPositionsTask(positions) {
+            const currentHash = JSON.stringify(positions);
+            if (dashboardState.positionsHash === currentHash) return;
+            
+            const container = document.getElementById('positions-container');
+            if (!container) return;
+
+            container.innerHTML = positions.map(p => `
+                <div class="flex justify-between items-center text-sm bg-white/5 p-3 rounded border border-white/5">
+                    <div class="flex flex-col">
+                        <span class="text-xs font-bold text-gray-400 uppercase tracking-tight">${p.symbol.split('/')[0]}</span>
+                        <span class="${p.side === 'long' ? 'text-green-400' : 'text-red-400'} text-[10px] font-bold uppercase">${p.side} ${p.leverage}x</span>
                     </div>
-                `).join('');
+                    <span class="${p.percentage >= 0 ? 'text-green-500' : 'text-red-500'} font-orbitron font-bold">${p.percentage.toFixed(2)}%</span>
+                </div>`).join('') || '<p class="text-xs text-gray-600 italic px-2">No active exposure</p>';
+            dashboardState.positionsHash = currentHash;
+        }
 
-                // Update Positions List
-                const posContainer = document.getElementById('positions-container');
-                posContainer.innerHTML = data.positions.map(p => `
-                    <div class="flex justify-between items-center text-sm bg-white/5 p-3 rounded border border-white/5">
-                        <div class="flex flex-col">
-                            <span class="text-xs font-bold text-gray-400 uppercase tracking-tight">${p.symbol.split('/')[0]}</span>
-                            <span class="${p.side === 'long' ? 'text-green-400' : 'text-red-400'} text-[10px] font-bold uppercase">${p.side} ${p.leverage}x</span>
-                        </div>
-                        <span class="${p.percentage >= 0 ? 'text-green-500' : 'text-red-500'} font-orbitron font-bold">${p.percentage.toFixed(2)}%</span>
-                    </div>
-                `).join('') || '<p class="text-xs text-gray-600 italic px-2">No active exposure</p>';
+        async function renderLogsTask(entries, botActive) {
+            const currentHash = JSON.stringify(entries.slice(0, 20));
+            if (dashboardState.logsHash === currentHash) return;
+            
+            const container = document.getElementById('log-container');
+            const watchdogStatus = document.getElementById('ai-watchdog-status');
+            
+            if (botActive && entries.length > 0) {
+                const latest = entries[0];
+                const isSleep = latest.action === 'SLEEP' || (latest.action === 'WAIT' && (latest.reasoning.includes('Quiet') || latest.reasoning === 'N/A'));
+                if (watchdogStatus) watchdogStatus.classList.toggle('hidden', !isSleep);
+            } else if (watchdogStatus) {
+                watchdogStatus.classList.add('hidden');
+            }
 
-                // Update Logs & Watchdog Status
-                const logContainer = document.getElementById('log-container');
-                const watchdogStatus = document.getElementById('ai-watchdog-status');
-                
-                // Only show watchdog if the bot is actually ONLINE
-                if (data.bot_active && data.entries.length > 0) {
-                    const latest = data.entries[0];
-                    const isSleep = latest.action === 'SLEEP' || 
-                                   (latest.action === 'WAIT' && (latest.reasoning.includes('Quiet') || latest.reasoning === 'N/A'));
-                    
-                    if (isSleep) {
-                        watchdogStatus.classList.remove('hidden');
-                    } else {
-                        watchdogStatus.classList.add('hidden');
-                    }
-                } else {
-                    // System is PAUSED or no logs, hide sensors indicator
-                    watchdogStatus.classList.add('hidden');
-                }
-
-                // Filter out SLEEP/N/A entries for the list to keep it clean
-                const visibleEntries = data.entries.filter(e => 
-                    e.action !== 'SLEEP' && 
-                    !(e.action === 'WAIT' && (e.reasoning.includes('Quiet') || e.reasoning === 'N/A'))
-                );
-
-                logContainer.innerHTML = visibleEntries.map((e, index) => {
-                    const statusColor = e.action === 'BUY' ? 'bg-green-500' : 
-                                      e.action === 'SELL' ? 'bg-red-500' : 
-                                      e.action === 'CLOSE' ? 'bg-white' : 'bg-blue-500';
+            const visibleEntries = entries.filter(e => e.action !== 'SLEEP' && !(e.action === 'WAIT' && (e.reasoning.includes('Quiet') || e.reasoning === 'N/A')));
+            if (container) {
+                container.innerHTML = visibleEntries.map((e, index) => {
+                    const statusColor = e.action === 'BUY' ? 'bg-green-500' : e.action === 'SELL' ? 'bg-red-500' : e.action === 'CLOSE' ? 'bg-white' : 'bg-blue-500';
                     return `
                     <div onclick="openModal(${index})" class="glass-panel p-4 bg-white/5 hover:bg-white/10 transition-all border-l-4 cursor-pointer ${e.action === 'BUY' ? 'border-green-500' : e.action === 'SELL' ? 'border-red-500' : 'border-gray-500'}">
                         <div class="flex justify-between items-start mb-2 pointer-events-none">
@@ -729,16 +758,72 @@
                             <span class="text-orbitron text-xs font-bold ${e.score >= 8 ? 'text-green-400' : e.score <= 3 ? 'text-red-400' : 'text-blue-400'}">SENTIMENT: ${e.score}/10</span>
                         </div>
                         <p class="text-xs text-gray-300 leading-relaxed italic line-clamp-2">"${e.reasoning}"</p>
-                    </div>
-                    `;
+                    </div>`;
                 }).join('') || '<div class="text-center py-10 text-gray-500 italic text-xs">Awaiting actionable market signals...</div>';
+            }
+            dashboardState.logsHash = currentHash;
+        }
 
-                // Update Chart
-                const chartLabels = data.entries.slice(0, 10).reverse().map(e => e.timestamp.split(' ')[1]);
-                const chartData = data.entries.slice(0, 10).reverse().map(e => e.score);
+        async function renderAnalyticsTask(a) {
+            if (!a) return;
+            const profitPrefix = a.total_profit > 0 ? '+' : '';
+            
+            const profitEl = document.getElementById('analytics-profit');
+            if (profitEl) {
+                profitEl.innerText = `${profitPrefix}${a.total_profit.toFixed(2)} USDT`;
+                profitEl.className = `text-3xl font-orbitron font-bold ${a.total_profit < 0 ? 'text-red-500' : a.total_profit > 0 ? 'text-white' : 'text-gray-400'}`;
+            }
+            
+            const roiEl = document.getElementById('analytics-roi');
+            if (roiEl) {
+                roiEl.innerText = `${profitPrefix}${a.roi_pct.toFixed(2)}% ROI`;
+                roiEl.className = `text-xs font-bold mt-2 ${a.total_profit < 0 ? 'text-red-400' : a.total_profit > 0 ? 'text-green-400' : 'text-gray-500'}`;
+            }
 
-                if (!sentimentChart) {
-                    const ctx = document.getElementById('sentimentChart').getContext('2d');
+            safeSetText('analytics-initial', `${a.initial_balance.toFixed(2)} USDT`);
+            safeSetText('analytics-current', `${a.current_balance.toFixed(2)} USDT`);
+            
+            const startDate = new Date(a.start_time);
+            safeSetText('analytics-start-date', `Started: ${startDate.toLocaleDateString()} ${startDate.getHours()}:${startDate.getMinutes()}`);
+            safeSetText('analytics-drawdown', `Max Drawdown: -${a.max_drawdown_pct.toFixed(2)}%`);
+            safeSetText('analytics-peak', `High: ${a.peak.toFixed(2)}`);
+            safeSetText('analytics-winrate', `Win Rate: ${a.win_rate.toFixed(1)}%`);
+            safeSetText('analytics-rf', `Rec. Factor: ${a.recovery_factor.toFixed(2)}`);
+            safeSetText('analytics-avg-pnl', `Avg Trade: ${a.avg_trade_pnl.toFixed(2)} USDT`);
+            safeSetText('analytics-kelly', `Kelly: ${a.kelly_criterion.toFixed(1)}% Size`);
+            safeSetText('analytics-expectancy', `Exp: ${a.expectancy.toFixed(4)}%`);
+            safeSetText('analytics-sharpe', `Sharpe: ${a.sharpe_ratio.toFixed(2)}`);
+            safeSetText('analytics-sortino', `Sortino: ${a.sortino_ratio.toFixed(2)}`);
+            safeSetText('analytics-streak', `Max Loss Streak: ${a.max_loss_streak}`);
+            safeSetText('analytics-efficiency', `Eff: ${a.profit_efficiency.toFixed(2)}/hr`);
+            
+            safeSetText('analytics-fees', `-${a.fees.toFixed(2)} USDT`);
+            safeSetText('analytics-net', `${a.net_profit >= 0 ? '+' : ''}${a.net_profit.toFixed(2)} USDT`);
+            safeSetText('analytics-pf', a.profit_factor.toFixed(2));
+            
+            const score = a.api_health_score !== undefined ? a.api_health_score : 100;
+            const latency = a.request_latency || 0;
+            const synced = a.last_sync_status !== undefined ? a.last_sync_status : true;
+            
+            let rLabel = "WARNING";
+            let rColor = "text-yellow-400";
+            if (score > 90 && synced && latency < 500) { rLabel = "STABLE"; rColor = "text-green-400"; }
+            else if (score < 50 || latency > 1500 || !synced) { rLabel = "STRESS"; rColor = "text-red-500"; }
+            
+            const relEl = document.getElementById('analytics-reliability');
+            if (relEl) {
+                relEl.innerText = `${rLabel} (${latency}ms)`;
+                relEl.className = `text-sm font-orbitron ${rColor}`;
+            }
+        }
+
+        async function updateChartsTask(entries) {
+            const chartLabels = entries.slice(0, 10).reverse().map(e => e.timestamp.split(' ')[1]);
+            const chartData = entries.slice(0, 10).reverse().map(e => e.score);
+
+            if (!sentimentChart) {
+                const ctx = document.getElementById('sentimentChart')?.getContext('2d');
+                if (ctx) {
                     sentimentChart = new Chart(ctx, {
                         type: 'line',
                         data: {
@@ -748,17 +833,12 @@
                                 data: chartData,
                                 borderColor: '#60a5fa',
                                 backgroundColor: 'rgba(96, 165, 250, 0.1)',
-                                borderWidth: 2,
-                                tension: 0.4,
-                                fill: true,
-                                pointBackgroundColor: '#60a5fa',
-                                pointBorderColor: '#fff',
-                                pointHoverRadius: 5
+                                borderWidth: 2, tension: 0.4, fill: true,
+                                pointBackgroundColor: '#60a5fa', pointBorderColor: '#fff', pointHoverRadius: 5
                             }]
                         },
                         options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
+                            responsive: true, maintainAspectRatio: false,
                             plugins: { legend: { display: false } },
                             scales: {
                                 y: { min: 0, max: 10, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
@@ -766,82 +846,11 @@
                             }
                         }
                     });
-                } else {
-                    sentimentChart.data.labels = chartLabels;
-                    sentimentChart.data.datasets[0].data = chartData;
-                    sentimentChart.update('none');
                 }
-
-                // Update Analytics Summary
-                if (data.analytics) {
-                    const a = data.analytics;
-                    const profitPrefix = a.total_profit > 0 ? '+' : '';
-                    document.getElementById('analytics-profit').innerText = `${profitPrefix}${a.total_profit.toFixed(2)} USDT`;
-                    
-                    // Style by profit/loss
-                    if (a.total_profit < 0) {
-                        document.getElementById('analytics-profit').className = "text-3xl font-orbitron font-bold text-red-500";
-                        document.getElementById('analytics-roi').className = "text-xs font-bold mt-2 text-red-400";
-                    } else if (a.total_profit > 0) {
-                        document.getElementById('analytics-profit').className = "text-3xl font-orbitron font-bold text-white"; // Let's keep it clean white but maybe neon?
-                        document.getElementById('analytics-roi').className = "text-xs font-bold mt-2 text-green-400";
-                    } else {
-                        document.getElementById('analytics-profit').className = "text-3xl font-orbitron font-bold text-gray-400";
-                        document.getElementById('analytics-roi').className = "text-xs font-bold mt-2 text-gray-500";
-                    }
-                    
-                    document.getElementById('analytics-roi').innerText = `${profitPrefix}${a.roi_pct.toFixed(2)}% ROI`;
-                    document.getElementById('analytics-initial').innerText = `${a.initial_balance.toFixed(2)} USDT`;
-                    document.getElementById('analytics-current').innerText = `${a.current_balance.toFixed(2)} USDT`;
-                    
-                    // New Crystalline Info
-                    const startDate = new Date(a.start_time);
-                    document.getElementById('analytics-start-date').innerText = `Started: ${startDate.toLocaleDateString()} ${startDate.getHours()}:${startDate.getMinutes()}`;
-                    document.getElementById('analytics-drawdown').innerText = `Max Drawdown: -${a.max_drawdown_pct.toFixed(2)}%`;
-                    document.getElementById('analytics-peak').innerText = `High: ${a.peak.toFixed(2)}`;
-                    
-                    document.getElementById('analytics-winrate').innerText = `Win Rate: ${a.win_rate.toFixed(1)}%`;
-                    document.getElementById('analytics-rf').innerText = `Rec. Factor: ${a.recovery_factor.toFixed(2)}`;
-                    document.getElementById('analytics-avg-pnl').innerText = `Avg Trade: ${a.avg_trade_pnl.toFixed(2)} USDT`;
-                    
-                    document.getElementById('analytics-kelly').innerText = `Kelly: ${a.kelly_criterion.toFixed(1)}% Size`;
-                    document.getElementById('analytics-expectancy').innerText = `Exp: ${a.expectancy.toFixed(4)}%`;
-                    document.getElementById('analytics-sharpe').innerText = `Sharpe: ${a.sharpe_ratio.toFixed(2)}`;
-                    document.getElementById('analytics-sortino').innerText = `Sortino: ${a.sortino_ratio.toFixed(2)}`;
-                    document.getElementById('analytics-streak').innerText = `Max Loss Streak: ${a.max_loss_streak}`;
-                    document.getElementById('analytics-efficiency').innerText = `Eff: ${a.profit_efficiency.toFixed(2)}/hr`;
-                    
-                    // Update Quant Matrix
-                    document.getElementById('analytics-fees').innerText = `-${a.fees.toFixed(2)} USDT`;
-                    document.getElementById('analytics-net').innerText = `${a.net_profit >= 0 ? '+' : ''}${a.net_profit.toFixed(2)} USDT`;
-                    document.getElementById('analytics-pf').innerText = a.profit_factor.toFixed(2);
-                    
-                    // Refactored Reliability Status
-                    const score = a.api_health_score !== undefined ? a.api_health_score : 100;
-                    const synced = a.last_sync_status !== undefined ? a.last_sync_status : true;
-                    const latency = a.request_latency || 0;
-                    
-                    let rLabel = "WARNING";
-                    let rColor = "text-yellow-400";
-                    
-                    if (score > 90 && synced && latency < 300) {
-                         rLabel = "STABLE";
-                         rColor = "text-green-400";
-                    } else if (score < 50 || latency > 1000 || !synced) {
-                         rLabel = "STRESS";
-                         rColor = "text-red-500";
-                    }
-                    
-                    if (document.getElementById('analytics-reliability')) {
-                        document.getElementById('analytics-reliability').innerText = `${rLabel} (${latency}ms)`;
-                        document.getElementById('analytics-reliability').className = `text-sm font-orbitron ${rColor}`;
-                    }
-                }
-
-            } catch (err) {
-                if(err instanceof Error) {
-                    console.error("Dashboard Sync Failed - Fatal Error:", err);
-                }
+            } else {
+                sentimentChart.data.labels = chartLabels;
+                sentimentChart.data.datasets[0].data = chartData;
+                sentimentChart.update('none');
             }
         }
         
@@ -1017,6 +1026,27 @@
             }
         }
 
+        async function deleteSymbol(symbol) {
+            if(!confirm(`Delete ${symbol} from active monitoring?`)) return;
+            
+            try {
+                const res = await fetch('/api/symbols/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol })
+                });
+                
+                if(res.ok) {
+                    updateDashboard();
+                } else {
+                    const result = await res.json();
+                    showError(result.message || "Failed to delete symbol");
+                }
+            } catch {
+                showError("Network error. Try again.");
+            }
+        }
+
         async function switchExchange() {
             const exchange = document.getElementById('exchange-select').value;
             try {
@@ -1093,6 +1123,12 @@
                 
                 const labels = history.map(h => new Date(h.timestamp).toLocaleDateString() + ' ' + new Date(h.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
                 const data = history.map(h => h.balance);
+
+                // Dynamically add current live balance as the last point if it exists
+                if (dashboardState.balance && (!data.length || data[data.length-1] !== dashboardState.balance)) {
+                    labels.push('Now');
+                    data.push(dashboardState.balance);
+                }
 
                 if (!performanceChart) {
                     const ctx = document.getElementById('performanceChart').getContext('2d');

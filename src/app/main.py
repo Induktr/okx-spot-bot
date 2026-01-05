@@ -11,6 +11,8 @@ from src.shared.utils.portfolio_tracker import portfolio_tracker
 from src.shared.providers.telegram_provider import telegram_bot
 from src.shared.utils.report_parser import report_parser
 import datetime
+from concurrent.futures import ThreadPoolExecutor
+import os
 
 # Configure internal logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -58,55 +60,40 @@ def astra_cycle():
             scribe.log_cycle({"action": "EMERGENCY_EXIT"}, "System wide liquidation triggered by Black Swan detection.")
             return
             
-        # 1. Collect Market Snapshot (Across ALL Exchanges)
+        # 1. Collect Market Snapshot (Across ALL Exchanges) in Parallel
         total_balance = 0
-        snapshot_lines = []
-        
-        # Aggregate balances first for tracking
-        for eid, t in traders.items():
-            total_balance += t.get_balance()
-        
-        # Record for Analytics
-        portfolio_tracker.record_snapshot(total_balance)
+        exchange_data_map = {} 
         
         for eid, t in traders.items():
             bal = t.get_balance()
-            all_positions = t.get_positions()
-            
-            for sim in config.SYMBOLS:
-                # Market Data (Price + Volume + Funding)
-                ticker_data = t.get_ticker(sim)
-                # If get_ticker returns float (old logic), handle it. If dict, extract.
-                price = 0.0
-                volume_24h = 0.0
-                
-                # Check if trader.get_ticker returns the direct price or full dict
-                # We need to peek at trader.py or just use exchange directly if needed, 
-                # but let's assume get_ticker returns 'last' price as per previous code.
-                # Actually, let's call exchange.fetch_ticker directly for more data safely
-                try:
-                    full_ticker = t.exchange.fetch_ticker(sim)
-                    price = full_ticker['last']
-                    volume_24h = float(full_ticker.get('quoteVolume', 0) or 0) / 1_000_000 # In Millions
-                except:
-                    price = t.get_ticker(sim) # Fallback
-
-                funding_rate = t.get_funding_rate(sim) * 100 # Convert to %
+            total_balance += bal
+            exchange_data_map[eid] = {
+                "balance": bal,
+                "positions": t.get_positions()
+            }
+        
+        portfolio_tracker.record_snapshot(total_balance)
+        
+        snapshot_lines = []
+        
+        def fetch_symbol_info(eid, t, sim, all_positions):
+            try:
+                # Grouped fetch for one symbol
+                full_ticker = t.exchange.fetch_ticker(sim)
+                price = full_ticker['last']
+                volume_24h = float(full_ticker.get('quoteVolume', 0) or 0) / 1_000_000 
+                funding_rate = t.get_funding_rate(sim) * 100 
                 
                 pos = [p for p in all_positions if p['symbol'] == sim]
                 pos_str = "No Position"
                 if pos:
                     p = pos[0]
-                    # Calculate Fee Awareness: Account for 0.05% taker fee on both open and close
-                    # Estimated Fee = Nominal Value * 0.0005
                     nominal_val = float(p.get('notional', 0) or 0)
                     upnl = float(p.get('unrealizedPnl', 0) or 0)
-                    est_total_fees = abs(nominal_val) * 0.0005 * 2 # Entry + Exit
+                    est_total_fees = abs(nominal_val) * 0.0005 * 2 
                     net_pnl = upnl - est_total_fees
-                    
                     pos_str = f"In {p['side']} (Net PnL: {net_pnl:.2f} USDT | Upnl: {upnl:.2f} | Fees: {est_total_fees:.2f})"
                 
-                # Technical Analysis Injection
                 ta_str = "| TA: N/A"
                 try:
                     candles = t.get_ohlcv(sim, timeframe='1h', limit=50)
@@ -114,22 +101,24 @@ def astra_cycle():
                         closes = [c[4] for c in candles]
                         rsi = tech_analysis.calculate_rsi(closes)
                         ema = tech_analysis.calculate_ema(closes)
-                        
-                        trend = "NEUTRAL"
-                        if ema:
-                            trend = "BULLISH" if price > ema else "BEARISH"
-                        
-                        ta_str = f"| RSI(1h): {rsi} | Trend: {trend} | Price vs EMA: {'Above' if price > ema else 'Below'}"
-                except Exception as ta_err:
-                    logging.warning(f"TA Error for {sim}: {ta_err}")
-
-                # --- Feature 2: On-Chain Sentinel (Simulation) ---
-                # In a production environment, this would call Whale Alert API
-                whale_move = 0 # Placeholder for actual live data
-                if whale_move > config.WHALE_MOVE_THRESHOLD:
-                    logging.info(f"[{eid.upper()}] Whale Alert! Large capital movement detected. Adjusting risk.")
+                        trend = "BULLISH" if price > (ema or 0) else "BEARISH"
+                        ta_str = f"| RSI(1h): {rsi} | Trend: {trend} | Price vs EMA: {'Above' if price > (ema or 0) else 'Below'}"
+                except: pass
                 
-                snapshot_lines.append(f"- [{eid.upper()}] {sim}: Price {price} | Vol: {volume_24h:.1f}M | Fund: {funding_rate:.4f}% {ta_str} | Status: {pos_str}")
+                return f"- [{eid.upper()}] {sim}: Price {price} | Vol: {volume_24h:.1f}M | Fund: {funding_rate:.4f}% {ta_str} | Status: {pos_str}"
+            except Exception as e:
+                return f"- [{eid.upper()}] {sim}: Error fetching data ({str(e)[:50]})"
+
+        # Execute symbol fetches in parallel
+        for eid, t in traders.items():
+            ex_data = exchange_data_map[eid]
+            all_positions = ex_data["positions"]
+            
+            with ThreadPoolExecutor(max_workers=len(config.SYMBOLS)) as executor:
+                # Map symbol fetches
+                future_results = [executor.submit(fetch_symbol_info, eid, t, sim, all_positions) for sim in config.SYMBOLS]
+                for future in future_results:
+                    snapshot_lines.append(future.result())
         
         market_snapshot = "\n".join(snapshot_lines)
         
@@ -216,9 +205,8 @@ def astra_cycle():
                             # ATOMIC FLIP
                             res = t.execute_flip(symbol, symbol_positions[0], decision, ai_budget, ai_lev)
                         else:
-                            # ADJUST EXISTING (Leverage + SL/TP)
-                            lev_res = t.set_leverage(symbol, ai_lev, side=current_side.lower())
-                            res = f"UPDATED: {lev_res} for existing {current_side}"
+                            # SIDE MATCHES - Skip leverage update for open positions as per user request
+                            res = f"SKIPPED: Leverage change ignored for existing {current_side} (Safety focus)"
                     else:
                         # NORMAL ENTRY
                         res = t.execute_order(symbol, decision, ai_budget, leverage=ai_lev)
@@ -238,16 +226,15 @@ def astra_cycle():
                 
                 elif decision == "ADJUST":
                      if symbol_positions:
-                         ai_lev = int(analysis.get('leverage', 3))
-                         lev_res = t.set_leverage(symbol, ai_lev, side=symbol_positions[0]['side'].lower())
-                         sync_status = t.sync_sl_tp(
-                            symbol_positions[0], 
-                            float(analysis.get('tp_pct', 0.35)), 
-                            float(analysis.get('sl_pct', 0.2))
-                        )
-                         execution_results.append(f"{eid.upper()}: ADJUSTED ({lev_res}, {sync_status})")
+                          # Skip leverage update for open positions as per user request
+                          sync_status = t.sync_sl_tp(
+                             symbol_positions[0], 
+                             float(analysis.get('tp_pct', 0.35)), 
+                             float(analysis.get('sl_pct', 0.2))
+                         )
+                          execution_results.append(f"{eid.upper()}: ADJUSTED ({sync_status})")
                      else:
-                         execution_results.append(f"{eid.upper()}: ADJUST skipped (No position)")
+                          execution_results.append(f"{eid.upper()}: ADJUST skipped (No position)")
             except Exception as exchange_err:
                 error_log = f"{eid.upper()} Failed: {str(exchange_err)}"
                 logging.error(error_log)

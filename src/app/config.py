@@ -178,8 +178,6 @@ class Config(BaseSettings):
         Licensing Module (The Guard).
         Validates the key against remote or local rules.
         """
-        # In production, this would make an API call to Induktr's license server.
-        # For now, it uses a pattern validation.
         valid_keys = ["ASTRA-PRO-2026", "DEV-MODE-KEYS"]
         if self.ASTRA_LICENSE_KEY not in valid_keys:
             import sys
@@ -192,9 +190,16 @@ class Config(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    def load_all_configs(self):
+        """Orchestrates parallel loading of all external config files."""
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            executor.submit(self.load_symbols)
+            executor.submit(self.load_settings)
+            executor.submit(self.check_license)
+
 # Initialize config object
 config = Config()
-config.load_symbols() # Load persistent symbols
-config.load_settings() # Load active exchanges
-config.check_license() # Lock system on startup
+# Perform parallel startup load
+config.load_all_configs()
 

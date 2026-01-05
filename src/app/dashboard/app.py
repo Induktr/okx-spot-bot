@@ -3,6 +3,8 @@ import os
 import sys
 import logging
 import time
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 # Add project root to path so we can import shared utils
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
@@ -13,18 +15,102 @@ from src.shared.utils.report_parser import report_parser
 from src.features.trade_executor.trader import trader, traders, refresh_traders
 from src.app.config import config
 from src.shared.utils.portfolio_tracker import portfolio_tracker
+from werkzeug.exceptions import HTTPException
 
 app = Flask(__name__)
+
+# Cache for dashboard data with background sync
+data_cache = {
+    "last_update": 0,
+    "data": None,
+    "current_latency": 0
+}
+
+async def background_data_sync():
+    """Background task to keep dashboard data fresh without blocking UI requests."""
+    while True:
+        try:
+            start_sync = time.perf_counter()
+            
+            # Fetch all data in parallel
+            async def fetch_all_exchange_data():
+                tasks = []
+                for eid, t in traders.items():
+                    tasks.append(fetch_exchange_data_async(eid, t))
+                return await asyncio.gather(*tasks)
+
+            # Re-using logic but in background
+            results_task = asyncio.create_task(fetch_all_exchange_data())
+            entries_task = asyncio.to_thread(report_parser.parse_latest)
+            
+            results, entries = await asyncio.gather(results_task, entries_task)
+            
+            total_balance = 0
+            all_positions = []
+            all_history = []
+            exchange_balances = {}
+            
+            for eid_upper, bal, pos, hist in results:
+                total_balance += bal
+                exchange_balances[eid_upper] = bal
+                all_positions.extend(pos)
+                all_history.extend(hist)
+            
+            all_history.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+            analytics = await asyncio.to_thread(portfolio_tracker.get_analytics, live_balance=total_balance, trade_history=all_history)
+            
+            data_cache["current_latency"] = round((time.perf_counter() - start_sync) * 1000)
+            
+            data_cache["data"] = {
+                "entries": entries,
+                "balance": total_balance,
+                "exchange_balances": exchange_balances,
+                "positions": all_positions,
+                "history": all_history[:30], 
+                "symbols": config.SYMBOLS,
+                "active_exchanges": config.ACTIVE_EXCHANGES,
+                "sandbox_modes": config.SANDBOX_MODES,
+                "bot_active": config.BOT_ACTIVE,
+                "analytics": analytics
+            }
+            data_cache["last_update"] = time.time()
+            
+        except Exception as e:
+            logging.error(f"Background Sync Error: {e}")
+            
+        await asyncio.sleep(5) # Sync every 5 seconds
+
+# Helper used by background task and potentially direct calls
+async def fetch_exchange_data_async(eid, t):
+    try:
+        res_bal, res_pos, res_hist = await asyncio.gather(
+            asyncio.to_thread(t.get_balance),
+            asyncio.to_thread(t.get_positions),
+            asyncio.to_thread(t.get_history, limit=100)
+        )
+        for trade in res_hist:
+            trade['exchange'] = eid.upper()
+        return eid.upper(), res_bal, res_pos, res_hist
+    except Exception as e:
+        logging.error(f"Async fetch error for {eid}: {e}")
+        return eid.upper(), 0.0, [], []
 
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Global error handler for all unhandled exceptions."""
+    if isinstance(e, HTTPException) and e.code == 404:
+        return "", 404 # Silent 404s for favicon/missing assets
+        
     logging.error(f"DASHBOARD ERROR: {e}")
     return jsonify({
         "status": "error",
         "message": str(e),
         "type": e.__class__.__name__
     }), 500
+
+@app.route('/favicon.ico')
+def favicon():
+    return "", 204 # No content, stops 404 noise
 
 @app.route('/api/bot_status', methods=['GET'])
 def get_bot_status():
@@ -50,63 +136,29 @@ def index():
     return render_template('index.html')
 
 @app.route('/api/data')
-def get_data():
-    start_timer = time.perf_counter()
-    entries = report_parser.parse_latest()
-    
-    total_balance = 0
-    all_positions = []
-    all_history = []
-    exchange_balances = {}
-    
-    # Aggregate from all active exchanges
-    for eid, t in traders.items():
-        bal = t.get_balance()
-        total_balance += bal
-        exchange_balances[eid.upper()] = bal
-        
-        all_positions.extend(t.get_positions())
-        # Fetch latest 20 trades per exchange and tag them
-        history = t.get_history(limit=20)
-        for trade in history:
-            trade['exchange'] = eid.upper()
-        all_history.extend(history)
-    
-    # Sort history by timestamp (newest first)
-    all_history.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+async def get_data():
+    # If cache is empty, do a quick foreground fetch or return placeholder
+    if not data_cache["data"]:
+        return jsonify({"status": "loading", "message": "Synchronizing with exchanges..."}), 202
 
-    # Calculate Technical Metrics
-    latency_ms = (time.perf_counter() - start_timer) * 1000
+    # Always return cached data for sub-10ms response time
+    response = data_cache["data"].copy()
     
-    # Simple Health Score Calculation
-    # Base 100, penalize for high latency
+    # Inject the real background latency into the response so user sees system status
+    # but the request itself is instant.
+    lat = data_cache["current_latency"]
+    
+    # We redefine health score relative to background sync quality
     health_score = 100
-    if latency_ms > 300:
-        penalty = (latency_ms - 300) / 20 # -1 point per 20ms over 300
+    if lat > 500: # For background sync, we are more lenient
+        penalty = (lat - 500) / 20
         health_score = max(0, 100 - penalty)
         
-    last_sync_status = True # If we reached here without bubbling exception
+    response["analytics"]["request_latency"] = lat
+    response["analytics"]["api_health_score"] = round(health_score)
+    response["analytics"]["last_sync_status"] = (time.time() - data_cache["last_update"]) < 15
     
-    # Inject into Analytics
-    analytics = portfolio_tracker.get_analytics(live_balance=total_balance, trade_history=all_history)
-    analytics.update({
-        "api_health_score": round(health_score),
-        "last_sync_status": last_sync_status,
-        "request_latency": round(latency_ms)
-    })
-
-    return jsonify({
-        "entries": entries,
-        "balance": total_balance,
-        "exchange_balances": exchange_balances,
-        "positions": all_positions,
-        "history": all_history[:30], # Top 30 recent trades
-        "symbols": config.SYMBOLS,
-        "active_exchanges": config.ACTIVE_EXCHANGES,
-        "sandbox_modes": config.SANDBOX_MODES,
-        "bot_active": config.BOT_ACTIVE,
-        "analytics": analytics
-    })
+    return jsonify(response)
 
 @app.route('/api/portfolio/history')
 def get_portfolio_history():
@@ -244,6 +296,27 @@ def delete_symbol():
 
 def run_dashboard():
     # Production-ready would use waitress or gunicorn, but flask dev server is fine for this bot's local use
+    
+    # Start the background sync loop before running Flask
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # We need to run the background loop in a way that doesn't block app.run
+        # But Flask development server doesn't play nice with async loops easily.
+        # So we start the background sync as a thread-safe task or similar.
+        import threading
+        def start_loop(loop):
+            asyncio.set_event_loop(loop)
+            loop.create_task(background_data_sync())
+            loop.run_forever()
+            
+        t = threading.Thread(target=start_loop, args=(loop,), daemon=True)
+        t.start()
+        
+    except Exception as e:
+        logging.error(f"Could not start background sync: {e}")
+
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
 
 if __name__ == '__main__':

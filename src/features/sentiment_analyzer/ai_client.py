@@ -36,10 +36,13 @@ class AIAgent:
             "3. Profit/Risk: Aim for 30-35% profit and 20% SL. Adjust based on market volatility.\n"
             "   - MANDATORY BREAKEVEN: If a position's current profit (ROE) exceeds 100%, you MUST suggest action: 'CLOSE' (to take 50% partial profit) or 'ADJUST' to move SL to entry price to ensure breakeven.\n"
             "4. Money Management: You MUST check the 'ACCOUNT BALANCE'. \n"
-            "   - If balance is 0: return action: 'WAIT' and target_symbol: 'NONE'.\n"
-            "   - Sizing: Base 'budget_usdt' on confidence (Sentiment 9-10 -> 25% balance, 6-8 -> 10%). Never exceed balance.\n"
+            "   - Sizing Principle: Calculate target budget as % of balance (Sentiment 9-10 -> 25%, 6-8 -> 10%).\n"
+            "   - Profitability Floor: If the calculated budget is less than 30 USDT, you MUST upgrade it to a minimum of 30 USDT (provided balance > 30). This 'Floor' ensures that potential profits always outweigh exchange commissions. If balance < 30, use nearly full balance.\n"
+            "   - Scalability: For large accounts where the percentage-based budget naturally exceeds 30 USDT, always follow the percentage-based rule.\n"
             "5. Flipping: You can return action 'SELL' to flip a LONG to SHORT (and vice-versa). You are responsible for deciding the leverage (1-20x) based on volatility.\n"
-            "Output Format: JSON only: {\"target_symbol\": \"BTC/USDT:USDT\", \"sentiment_score\": 1-10, \"action\": \"BUY/SELL/WAIT/CLOSE/ADJUST\", \"tp_pct\": 0.35, \"sl_pct\": 0.1, \"leverage\": 5, \"budget_usdt\": 15.0, \"reasoning\": \"Explain convergence of News + Technicals and why you chose this specific budget/leverage...\"}.\n"
+            "6. Leverage Constraint: Once you have entered a trade (Status show 'In LONG' or 'In SHORT' in SNAPSHOT), you MUST NOT suggest a change to 'leverage' for that specific position. Leverage should only be set during the initial 'BUY' or 'SELL' entry or when performing a 'FLIP'.\n"
+            "7. Strategic Concentration: For small accounts where you are hitting the 'Profitability Floor', focus ONLY on the TOP 1-2 signals (Sentiment >= 8). For larger accounts with higher capacity, you may diversify across more symbols.\n"
+            "Output Format: JSON only: {\"target_symbol\": \"BTC/USDT:USDT\", \"sentiment_score\": 1-10, \"action\": \"BUY/SELL/WAIT/CLOSE/ADJUST\", \"tp_pct\": 0.35, \"sl_pct\": 0.1, \"leverage\": 5, \"budget_usdt\": 15.0, \"reasoning\": \"Explain convergence of News + Technicals...\"}.\n"
             "If no action is needed or balance is zero, return \"target_symbol\": \"NONE\" and \"action\": \"WAIT\".\n"
         )
         self._init_client()

@@ -96,6 +96,9 @@ class Trader:
                 logging.warning(f"[{self.exchange_id}] Balance is 0.0. Check your API keys and permissions.")
                 
             return total_equity
+        except ccxt.AuthenticationError as e:
+            logging.error(f"[{self.exchange_id}] Auth Error: Invalid API Keys or Passphrase. Detailed: {e}")
+            return 0.0
         except Exception as e:
             logging.error(f"[{self.exchange_id}] Balance error: {e}")
             return 0.0
@@ -130,10 +133,21 @@ class Trader:
             logging.error(f"[{self.exchange_id}] OHLCV error: {e}")
             return []
 
-    def get_history(self, limit=20):
+    def get_history(self, limit=100):
         try:
             trades = self.exchange.fetch_my_trades(limit=limit)
-            return trades if trades is not None else []
+            if not trades: return []
+            
+            # OKX Specific: Ensure pnl is mapped for analytics
+            if self.exchange_id == 'okx':
+                for t in trades:
+                    if not t.get('pnl') and 'info' in t:
+                        info = t['info']
+                        # OKX V5 uses fillPnl for realized profit in trades
+                        if 'fillPnl' in info and info['fillPnl'] != '0':
+                            t['pnl'] = float(info['fillPnl'])
+            
+            return trades
         except Exception as e:
             logging.error(f"[{self.exchange_id}] History error: {e}")
             return []
@@ -148,6 +162,9 @@ class Trader:
             if target_symbol:
                 return [p for p in active_positions if p['symbol'] == target_symbol]
             return active_positions
+        except ccxt.AuthenticationError as e:
+            logging.error(f"[{self.exchange_id}] Auth Error: Cannot fetch positions. Check API permissions. Detailed: {e}")
+            return []
         except Exception as e:
             logging.error(f"[{self.exchange_id}] Positions error: {e}")
             return []
@@ -254,6 +271,7 @@ class Trader:
             if not current_price: return "Price Error"
 
             # Set Leverage (Adaptive)
+            leverage = self.calculate_adaptive_leverage(symbol, leverage)
             side_for_lev = 'long' if side.upper() == "BUY" else "short"
             self.set_leverage(symbol, leverage, side=side_for_lev)
 
@@ -528,6 +546,7 @@ class Trader:
             logging.error(f"[{self.exchange_id}] TP/SL Error: {e}")
             return str(e)
 # Initialize traders collection
+trader = None
 traders = {}
 
 def refresh_traders():

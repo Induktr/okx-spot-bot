@@ -1,5 +1,6 @@
 ccxt
-flask
+flask[async]
+asgiref
 google-genai
 python-dotenv
 pydantic
@@ -7,3 +8,4 @@ pydantic-settings
 schedule
 requests
 feedparser
+websockets

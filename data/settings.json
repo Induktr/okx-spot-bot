@@ -9,7 +9,7 @@
     },
     "gemini_key": "AIzaSyAhXJHCu7TFMKUqjoU8v4gQCTs-eHDIDKg",
     "ai_provider": "gemini",
-    "bot_active": true,
+    "bot_active": false,
     "openai_key": "",
     "deepseek_key": "",
     "anthropic_key": "",
@@ -19,5 +19,9 @@
     "binance_key": "6E4lEcIWRJaOWHM8OYdPtqPTneA9rdsmEMPRM1IA2KKjf58weJlqpPV4q3aXqF0H",
     "binance_secret": "dG1bAVbinMn6OV6BQkZ2FYDh1YnaWKfj61BCNQ5DWeMsW1MOx89A6y4BaLi5dhc6",
     "bybit_key": "",
-    "bybit_secret": ""
+    "bybit_secret": "",
+    "tg_token": "8435233928:AAHk-4pzNE8rCC80MAPjWATxv0eAzqVv4gw",
+    "tg_chat_id": "8435233928",
+    "max_leverage": 10,
+    "tg_signals_active": true
 }
