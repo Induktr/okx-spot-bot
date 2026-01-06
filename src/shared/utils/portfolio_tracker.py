@@ -23,8 +23,7 @@ class PortfolioTracker:
     def record_snapshot(self, total_balance):
         """Saves a timestamped balance snapshot."""
         try:
-            with open(self.filename, "r") as f:
-                history = json.load(f)
+            history = self.get_history()
             
             # Keep only the last 500 snapshots to avoid file bloat
             if len(history) > 500:
@@ -37,8 +36,25 @@ class PortfolioTracker:
 
             with open(self.filename, "w") as f:
                 json.dump(history, f, indent=4)
+            self._cache = history # Update cache immediately
         except Exception as e:
             print(f"Error recording portfolio snapshot: {e}")
+
+    def reset_history(self, initial_balance):
+        """Clears history and sets a new starting point."""
+        try:
+            new_history = [{
+                "timestamp": datetime.now().isoformat(),
+                "balance": round(float(initial_balance), 2)
+            }]
+            with open(self.filename, "w") as f:
+                json.dump(new_history, f, indent=4)
+            self._cache = new_history
+            self._last_mtime = os.path.getmtime(self.filename)
+            return True
+        except Exception as e:
+            print(f"Error resetting history: {e}")
+            return False
 
     def get_history(self):
         """Returns the full historical balance data with memory caching."""
@@ -47,11 +63,18 @@ class PortfolioTracker:
             if current_mtime <= self._last_mtime and self._cache:
                 return self._cache
             
-            with open(self.filename, "r") as f:
-                self._cache = json.load(f)
+            if os.path.exists(self.filename):
+                with open(self.filename, "r") as f:
+                    content = f.read().strip()
+                    if not content:
+                         self._cache = []
+                    else:
+                         self._cache = json.loads(content)
                 self._last_mtime = current_mtime
                 return self._cache
-        except:
+            return []
+        except Exception as e:
+            print(f"Warning: Could not load portfolio history: {e}")
             return self._cache if self._cache else []
 
     def get_analytics(self, live_balance=None, trade_history=None):
@@ -66,30 +89,47 @@ class PortfolioTracker:
         total_loss_val = 0
         
         if trade_history:
-            for trade in trade_history:
+            # Sort chronologically to calculate streaks correctly (history is usually passed newest-first)
+            chrono_history = sorted(trade_history, key=lambda x: x.get('timestamp', 0))
+            
+            # Reset streak counters for trade-based calculation
+            current_trade_streak = 0
+            max_trade_streak = 0
+
+            for trade in chrono_history:
                 cost = float(trade.get('cost', 0))
                 fee = cost * 0.0005 
                 total_fees += fee
                 
                 if trade.get('pnl'):
                     pnl = float(trade['pnl'])
-                    if pnl > 0:
+                    if pnl > 0.01: # Significant win
                         win_trades += 1
                         total_win_val += pnl
-                    else:
+                        current_trade_streak = 0 # Break loss streak
+                    elif pnl < -0.01: # Significant loss
                         loss_trades += 1
                         total_loss_val += abs(pnl)
+                        current_trade_streak += 1
+                        if current_trade_streak > max_trade_streak:
+                            max_trade_streak = current_trade_streak
 
-        # Fallback for Profit Factor & Win/Loss using equity deltas if no trade pnl available
-        if not total_win_val and len(history) > 1:
-            for i in range(1, len(history)):
-                diff = history[i]['balance'] - history[i-1]['balance']
-                if diff > 0.05: # Ignore micro-dust
-                    total_win_val += diff
-                    win_trades += 1
-                elif diff < -0.05:
-                    total_loss_val += abs(diff)
-                    loss_trades += 1
+            # Fallback for Profit Factor & Win/Loss using equity deltas if no trade pnl available
+            if not total_win_val and len(history) > 1:
+                for i in range(1, len(history)):
+                    diff = history[i]['balance'] - history[i-1]['balance']
+                    if diff > 0.05: # Ignore micro-dust
+                        total_win_val += diff
+                        win_trades += 1
+                    elif diff < -0.05:
+                        total_loss_val += abs(diff)
+                        loss_trades += 1
+            
+            # Use the higher of the two (snapshots vs trades) for streak to be conservative
+            # max_loss_streak will be updated later using snapshots if they show worse performance
+            streak_from_trades = max_trade_streak
+        else:
+            streak_from_trades = 0
 
         if not history:
             return {
@@ -190,7 +230,7 @@ class PortfolioTracker:
             "kelly_criterion": round(max(0, kelly) * 100, 2),
             "sharpe_ratio": round(sharpe, 2),
             "sortino_ratio": round(sortino, 2),
-            "max_loss_streak": max_consecutive_losses,
+            "max_loss_streak": max(max_consecutive_losses, streak_from_trades),
             "profit_efficiency": round(efficiency_per_hour, 2),
             "expectancy": round(avg_trade_pnl / initial * 100, 4) if initial > 0 else 0,
             "initial_balance": round(initial, 2),

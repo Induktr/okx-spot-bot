@@ -280,7 +280,10 @@
                             <p id="analytics-roi" class="text-xs font-bold mt-2 text-green-400">+0.00% ROI</p>
                         </div>
                         <div class="glass-panel p-6 border-white/5">
-                            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-2">Initial Balance</p>
+                            <div class="flex justify-between items-center mb-2">
+                                <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Initial Balance</p>
+                                <button onclick="openResetModal()" class="text-[9px] text-blue-400 hover:text-white uppercase font-bold">[ Manual Init ]</button>
+                            </div>
                             <h2 id="analytics-initial" class="text-xl font-orbitron font-bold text-gray-400">0.00 USDT</h2>
                             <div class="flex flex-col mt-2 gap-1">
                                 <div class="flex justify-between items-center">
@@ -584,6 +587,26 @@
         </div>
     </div>
 
+    <!-- Manual Reset Modal -->
+    <div id="reset-modal" class="fixed inset-0 modal-overlay z-[100] hidden flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-sm p-8 border-blue-500/30 text-center">
+            <div class="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg class="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <h2 class="text-xl font-orbitron font-bold text-white mb-2 uppercase tracking-wider">Manual Initialization</h2>
+            <p class="text-sm text-gray-400 mb-6 leading-relaxed">Set your starting capital. This will clear existing history and restart ROI tracking from this point.</p>
+            
+            <div class="mb-8">
+                <input type="number" id="manual-init-balance" step="0.01" class="w-full bg-black/40 border border-white/10 rounded px-4 py-3 text-white font-orbitron focus:border-blue-500 outline-none transition-all placeholder:text-gray-700" placeholder="Enter Amount (e.g. 150.00)">
+            </div>
+
+            <div class="flex gap-4">
+                <button onclick="closeResetModal()" class="flex-1 px-4 py-3 border border-white/5 text-gray-500 font-bold text-xs uppercase hover:bg-white/5 transition-all rounded">Cancel</button>
+                <button onclick="executeManualReset()" class="flex-1 px-4 py-3 bg-blue-600 text-white font-bold text-xs uppercase hover:bg-blue-500 transition-all rounded shadow-lg shadow-blue-500/20">Confirm Reset</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let sentimentChart;
         let performanceChart;
@@ -784,7 +807,8 @@
             safeSetText('analytics-current', `${a.current_balance.toFixed(2)} USDT`);
             
             const startDate = new Date(a.start_time);
-            safeSetText('analytics-start-date', `Started: ${startDate.toLocaleDateString()} ${startDate.getHours()}:${startDate.getMinutes()}`);
+            const dateStr = isNaN(startDate.getTime()) ? 'Not Started' : `${startDate.toLocaleDateString()} ${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`;
+            safeSetText('analytics-start-date', `Started: ${dateStr}`);
             safeSetText('analytics-drawdown', `Max Drawdown: -${a.max_drawdown_pct.toFixed(2)}%`);
             safeSetText('analytics-peak', `High: ${a.peak.toFixed(2)}`);
             safeSetText('analytics-winrate', `Win Rate: ${a.win_rate.toFixed(1)}%`);
@@ -1294,6 +1318,41 @@
                 }
             } catch (e) {
                 alert("Network error while deleting reports.");
+            }
+        }
+
+        function openResetModal() {
+            document.getElementById('reset-modal').classList.remove('hidden');
+            document.getElementById('manual-init-balance').focus();
+        }
+
+        function closeResetModal() {
+            document.getElementById('reset-modal').classList.add('hidden');
+        }
+
+        async function executeManualReset() {
+            const balance = document.getElementById('manual-init-balance').value;
+            if (!balance || balance <= 0) {
+                alert("Please enter a valid positive balance.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/portfolio/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ balance: parseFloat(balance) })
+                });
+                const result = await res.json();
+                if (res.ok) {
+                    closeResetModal();
+                    updateDashboard();
+                    alert("Success: " + result.message);
+                } else {
+                    alert("Error: " + result.message);
+                }
+            } catch (e) {
+                alert("Network error while resetting history.");
             }
         }
 

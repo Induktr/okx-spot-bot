@@ -283,6 +283,18 @@ def add_symbol():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route('/api/portfolio/reset', methods=['POST'])
+def reset_portfolio():
+    try:
+        data = request.json
+        initial_balance = data.get('balance', 0)
+        success = portfolio_tracker.reset_history(initial_balance)
+        if success:
+            return jsonify({"status": "success", "message": f"History reset to {initial_balance} USDT"})
+        return jsonify({"status": "error", "message": "Failed to reset history file"}), 500
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route('/api/symbols/delete', methods=['POST'])
 def delete_symbol():
     data = request.json
