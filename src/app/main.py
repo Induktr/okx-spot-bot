@@ -240,10 +240,17 @@ def astra_cycle():
                 logging.error(error_log)
                 execution_results.append(error_log)
 
-        # 4. Scribe: Log results
+        # 4. Scribe & Telegram: Log results
         scribe.log_cycle(analysis, f"Executed on {len(traders)} exchanges: {', '.join(execution_results)}")
+        
+        # Pull fresh analytics for the Telegram report
+        try:
+            analytics = portfolio_tracker.get_analytics()
+            telegram_bot.send_execution_report(symbol, decision, execution_results, analytics)
+        except Exception as tg_err:
+            logging.error(f"Telegram execution report failed: {tg_err}")
 
-        logging.info(f"Cycle for {symbol} complete. Next selective cycle in 2 hours.")
+        logging.info(f"Cycle for {symbol} complete.")
 
     except Exception as e:
         logging.error(f"CRITICAL ERROR in selective cycle: {e}")
@@ -275,6 +282,18 @@ def main():
     
     logging.info("Scheduler active: Selecting the best coin to trade every 60 minutes.")
     
+    # Feature 5: Start Telegram Command Listener (Interactive)
+    def start_tg_listener():
+        try:
+            telegram_bot.setup_commands(traders, portfolio_tracker)
+            telegram_bot.start_polling()
+        except Exception as e:
+            logging.error(f"Telegram listener failed: {e}")
+
+    import threading
+    tg_thread = threading.Thread(target=start_tg_listener, daemon=True)
+    tg_thread.start()
+
     while True:
         # Check if UI requested an immediate cycle (Manual Resume)
         if config.FORCE_CYCLE:

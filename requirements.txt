@@ -9,3 +9,4 @@ schedule
 requests
 feedparser
 websockets
+pyTelegramBotAPI

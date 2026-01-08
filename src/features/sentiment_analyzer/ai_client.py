@@ -42,7 +42,8 @@ class AIAgent:
             "5. Flipping: You can return action 'SELL' to flip a LONG to SHORT (and vice-versa). You are responsible for deciding the leverage (1-20x) based on volatility.\n"
             "6. Leverage Constraint: Once you have entered a trade (Status show 'In LONG' or 'In SHORT' in SNAPSHOT), you MUST NOT suggest a change to 'leverage' for that specific position. Leverage should only be set during the initial 'BUY' or 'SELL' entry or when performing a 'FLIP'.\n"
             "7. Strategic Concentration: For small accounts where you are hitting the 'Profitability Floor', focus ONLY on the TOP 1-2 signals (Sentiment >= 8). For larger accounts with higher capacity, you may diversify across more symbols.\n"
-            "Output Format: JSON only: {\"target_symbol\": \"BTC/USDT:USDT\", \"sentiment_score\": 1-10, \"action\": \"BUY/SELL/WAIT/CLOSE/ADJUST\", \"tp_pct\": 0.35, \"sl_pct\": 0.1, \"leverage\": 5, \"budget_usdt\": 15.0, \"reasoning\": \"Explain convergence of News + Technicals...\"}.\n"
+            "Output Format: JSON only: {\"target_symbol\": \"BTC/USDT:USDT\", \"sentiment_score\": 1-10, \"action\": \"BUY/SELL/WAIT/CLOSE/ADJUST\", \"tp_pct\": 0.35, \"sl_pct\": 0.1, \"leverage\": 5, \"budget_usdt\": 15.0, \"reasoning\": \"CONCISE 2-sentence tactical summary citing RSI + Trend.\"}.\n"
+            "Style: Be brief, clinical, and data-driven. No fluff.\n"
             "If no action is needed or balance is zero, return \"target_symbol\": \"NONE\" and \"action\": \"WAIT\".\n"
         )
         self._init_client()
@@ -52,6 +53,15 @@ class AIAgent:
         api_key = self.keys[self.current_key_index]
         self.client = genai.Client(api_key=api_key)
         logging.info(f"AIAgent initialized: Key #{self.current_key_index + 1}/{len(self.keys)} | Model: {self.model_id}")
+
+    def _reset_to_primary(self):
+        """Resets indices to point to the first (best) model and first key."""
+        if self.current_model_index != 0 or self.current_key_index != 0:
+            self.current_model_index = 0
+            self.current_key_index = 0
+            self.model_id = config.GEMINI_MODELS[0]
+            self._init_client()
+            logging.info(f"🔄 Priority Reset: Starting cycle with primary model {self.model_id}")
 
     def _rotate_model(self):
         """Rotate to the next model in the pool to bypass rate limits."""
@@ -101,6 +111,8 @@ class AIAgent:
         elif provider == "anthropic":
             result = self._analyze_anthropic(headlines, balance, snapshot, market_mood)
         else:
+            # Force reset to primary model at the start of a new analysis cycle
+            self._reset_to_primary()
             result = self._analyze_gemini(headlines, balance, snapshot, market_mood)
             
         # SAFETY FIX: If AI returns a list (e.g. [ {..} ]), take the first item
@@ -141,9 +153,8 @@ class AIAgent:
             f"--- GLOBAL MARKET MOOD ---\n{market_mood}\n\n"
             f"--- MARKET SNAPSHOT ---\n{snapshot}\n\n"
             f"--- LATEST NEWS ---\n{headlines}\n\n"
-            "Review the snapshot and news. Which coin from the list is the best candidate to BUY, SELL, or requires management (CLOSE/ADJUST)? "
-            "Return the 'target_symbol' and the determined action. If nothing is worth trading, return target_symbol: NONE. "
-            "IMPORTANT: In your 'reasoning', you MUST cite the RSI value and Trend provided in the SNAPSHOT to justify your decision."
+            "Review the snapshot and news. Pick the best candidate or manage current positions. "
+            "Return JSON. IMPORTANT: 'reasoning' MUST be a CONCISE (max 30 words) tactical justification citing RSI and Trend."
         )
 
     def _analyze_openai_compatible(self, headlines, balance, snapshot, market_mood):

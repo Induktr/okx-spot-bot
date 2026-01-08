@@ -14,12 +14,12 @@ class Config(BaseSettings):
     # Gemini API
     GEMINI_API_KEY: str = Field("", env="GEMINI_API_KEY")
     GEMINI_KEYS: list[str] = [] # Loaded from external file if exists
-    # Gemini Model Pool (rotates on rate limit errors)
+    # Gemini Model Pool (Financial Trading Optimized)
+    # CRITICAL: Only models proven for financial analysis should be here
     GEMINI_MODELS: list[str] = [
-        "gemini-3-flash-preview",           # Primary (fastest)
-        "gemini-robotics-er-1.5-preview", # Your favorite fallback
+        "gemini-3-flash-preview",
+        "gemini-2.0-flash",
         "gemini-2.0-flash-lite",
-        "gemini-2.0-flash",          # Stable backup
     ]
     GEMINI_RPM_LIMIT: int = 15
     
