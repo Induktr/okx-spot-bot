@@ -245,7 +245,16 @@ def astra_cycle():
         
         # Pull fresh analytics for the Telegram report
         try:
-            analytics = portfolio_tracker.get_analytics()
+            # Fetch real trade history from exchanges for accurate stats
+            all_trade_history = []
+            for eid, t in traders.items():
+                try:
+                    history = t.get_history(limit=50) # Get last 50 trades per exchange
+                    all_trade_history.extend(history)
+                except Exception as h_err:
+                    logging.warning(f"Failed to fetch history for {eid}: {h_err}")
+
+            analytics = portfolio_tracker.get_analytics(trade_history=all_trade_history)
             telegram_bot.send_execution_report(symbol, decision, execution_results, analytics)
         except Exception as tg_err:
             logging.error(f"Telegram execution report failed: {tg_err}")
