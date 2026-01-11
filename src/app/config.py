@@ -26,6 +26,10 @@ class Config(BaseSettings):
     # Bot Control
     BOT_ACTIVE: bool = True
     FORCE_CYCLE: bool = False # Internal flag for immediate wake-up
+    TRADING_DAYS: list[int] = [0, 1, 2, 3, 4] # Mon-Fri by default (0-6)
+    TRADING_START_HOUR: int = 0 # 00:00
+    TRADING_END_HOUR: int = 24 # 24:00 (Full Day)
+    CYCLE_INTERVAL_MINUTES: int = 60 # Default to 1 hour
 
     # AI Provider Selection: 'gemini', 'openai', 'deepseek', 'anthropic'
     AI_PROVIDER: str = "gemini"
@@ -101,6 +105,10 @@ class Config(BaseSettings):
                 self.GEMINI_API_KEY = data.get("gemini_key", self.GEMINI_API_KEY)
                 self.AI_PROVIDER = data.get("ai_provider", "gemini")
                 self.BOT_ACTIVE = data.get("bot_active", True)
+                self.CYCLE_INTERVAL_MINUTES = data.get("cycle_interval", 60)
+                self.TRADING_DAYS = data.get("trading_days", [0, 1, 2, 3, 4])
+                self.TRADING_START_HOUR = data.get("trading_start_hour", 0)
+                self.TRADING_END_HOUR = data.get("trading_end_hour", 24)
                 self.OPENAI_API_KEY = data.get("openai_key", self.OPENAI_API_KEY)
                 self.DEEPSEEK_API_KEY = data.get("deepseek_key", self.DEEPSEEK_API_KEY)
                 self.ANTHROPIC_API_KEY = data.get("anthropic_key", self.ANTHROPIC_API_KEY)
@@ -132,6 +140,10 @@ class Config(BaseSettings):
                 "gemini_key": self.GEMINI_API_KEY,
                 "ai_provider": self.AI_PROVIDER,
                 "bot_active": self.BOT_ACTIVE,
+                "cycle_interval": self.CYCLE_INTERVAL_MINUTES,
+                "trading_days": self.TRADING_DAYS,
+                "trading_start_hour": self.TRADING_START_HOUR,
+                "trading_end_hour": self.TRADING_END_HOUR,
                 "openai_key": self.OPENAI_API_KEY,
                 "deepseek_key": self.DEEPSEEK_API_KEY,
                 "anthropic_key": self.ANTHROPIC_API_KEY,
@@ -150,6 +162,7 @@ class Config(BaseSettings):
     
     # Trading Settings
     SYMBOLS: list[str] = []
+    HOT_SYMBOLS: list[str] = [] # Auto-populated by Screener
     
     def load_symbols(self):
         """Loads symbols from local data/symbols.json."""

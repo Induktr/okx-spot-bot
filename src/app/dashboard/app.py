@@ -4,6 +4,7 @@ import sys
 import logging
 import time
 import asyncio
+import datetime
 from concurrent.futures import ThreadPoolExecutor
 
 # Add project root to path so we can import shared utils
@@ -68,9 +69,14 @@ async def background_data_sync():
                 "positions": all_positions,
                 "history": all_history[:30], 
                 "symbols": config.SYMBOLS,
+                "hot_symbols": config.HOT_SYMBOLS,
                 "active_exchanges": config.ACTIVE_EXCHANGES,
                 "sandbox_modes": config.SANDBOX_MODES,
                 "bot_active": config.BOT_ACTIVE,
+                "trading_days": config.TRADING_DAYS,
+                "trading_start_hour": config.TRADING_START_HOUR,
+                "trading_end_hour": config.TRADING_END_HOUR,
+                "is_trading_day": datetime.datetime.now().weekday() in config.TRADING_DAYS,
                 "analytics": analytics
             }
             data_cache["last_update"] = time.time()
@@ -114,7 +120,11 @@ def favicon():
 
 @app.route('/api/bot_status', methods=['GET'])
 def get_bot_status():
-    return jsonify({"active": config.BOT_ACTIVE})
+    return jsonify({
+        "active": config.BOT_ACTIVE,
+        "trading_days": config.TRADING_DAYS,
+        "is_trading_day": datetime.datetime.now().weekday() in config.TRADING_DAYS
+    })
 
 @app.route('/api/toggle_bot', methods=['POST'])
 def toggle_bot():
@@ -129,7 +139,41 @@ def toggle_bot():
     else:
         logging.info("USER COMMAND: Bot PAUSED. Going to sleep.")
         
-    return jsonify({"active": config.BOT_ACTIVE, "message": f"Bot {status}"})
+    return jsonify({
+        "active": config.BOT_ACTIVE, 
+        "message": f"Bot {status}",
+        "trading_days": config.TRADING_DAYS,
+        "is_trading_day": datetime.datetime.now().weekday() in config.TRADING_DAYS
+    })
+
+@app.route('/api/update_schedule', methods=['POST'])
+def update_schedule():
+    data = request.json
+    days = data.get('trading_days', config.TRADING_DAYS)
+    start_hour = int(data.get('start_hour', config.TRADING_START_HOUR))
+    end_hour = int(data.get('end_hour', config.TRADING_END_HOUR))
+    
+    # Validation: List of ints 0-6
+    if not isinstance(days, list) or not all(isinstance(d, int) and 0 <= d <= 6 for d in days):
+        return jsonify({"status": "error", "message": "Invalid trading days format"}), 400
+    
+    # Validation: Hours 0-24
+    if not (0 <= start_hour <= 24) or not (0 <= end_hour <= 24):
+         return jsonify({"status": "error", "message": "Invalid hours format"}), 400
+
+    config.TRADING_DAYS = days
+    config.TRADING_START_HOUR = start_hour
+    config.TRADING_END_HOUR = end_hour
+    config.save_settings()
+    logging.info(f"USER COMMAND: Schedule updated -> Days: {days}, Hours: {start_hour}:00-{end_hour}:00")
+    
+    return jsonify({
+        "status": "success",
+        "trading_days": config.TRADING_DAYS,
+        "start_hour": config.TRADING_START_HOUR,
+        "end_hour": config.TRADING_END_HOUR,
+        "is_trading_day": datetime.datetime.now().weekday() in config.TRADING_DAYS
+    })
 
 @app.route('/')
 def index():

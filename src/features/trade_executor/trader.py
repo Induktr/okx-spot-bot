@@ -133,6 +133,26 @@ class Trader:
             logging.error(f"[{self.exchange_id}] OHLCV error: {e}")
             return []
 
+    def get_top_symbols(self, limit=50) -> List[str]:
+        """Fetches top N USDT-SWAP symbols by 24h trading volume."""
+        try:
+            tickers = self.exchange.fetch_tickers()
+            # Filter for USDT Perpetual Swaps (e.g. BTC/USDT:USDT)
+            valid_tickers = []
+            for symbol, ticker in tickers.items():
+                if ':USDT' in symbol and ticker.get('quoteVolume'):
+                    valid_tickers.append({
+                        'symbol': symbol,
+                        'volume': float(ticker['quoteVolume'])
+                    })
+            
+            # Sort by volume descending
+            sorted_tickers = sorted(valid_tickers, key=lambda x: x['volume'], reverse=True)
+            return [x['symbol'] for x in sorted_tickers[:limit]]
+        except Exception as e:
+            logging.error(f"[{self.exchange_id}] Failed to fetch top symbols: {e}")
+            return []
+
     def get_history(self, limit=100):
         try:
             trades = self.exchange.fetch_my_trades(limit=limit)
@@ -485,8 +505,8 @@ class Trader:
         except Exception as e:
             logging.warning(f"[{self.exchange_id}] Cancel Algos error: {e}")
 
-    def sync_sl_tp(self, pos, tp_pct=0.3, sl_pct=0.2):
-        """Sets protective TP/SL orders."""
+    def sync_sl_tp(self, pos, tp_pct=0.3, sl_pct=0.2, tp_price=None, sl_price=None):
+        """Sets protective TP/SL orders. Supports pct or direct price overrides."""
         if self.exchange_id != 'okx':
             logging.info(f"[{self.exchange_id}] TP/SL skip (not implemented for this exchange yet)")
             return "Skipped"
@@ -499,8 +519,10 @@ class Trader:
 
             self.cancel_algo_orders(symbol)
 
-            tp_price = entry_price * (1 + tp_pct) if side == 'long' else entry_price * (1 - tp_pct)
-            sl_price = entry_price * (1 - sl_pct) if side == 'long' else entry_price * (1 + sl_pct)
+            if tp_price is None:
+                tp_price = entry_price * (1 + tp_pct) if side == 'long' else entry_price * (1 - tp_pct)
+            if sl_price is None:
+                sl_price = entry_price * (1 - sl_pct) if side == 'long' else entry_price * (1 + sl_pct)
             
             # Format prices according to exchange precision
             tp_str = self.exchange.price_to_precision(symbol, tp_price)
