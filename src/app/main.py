@@ -38,13 +38,23 @@ def astra_cycle():
     The opportunistic cycle of A.S.T.R.A.
     AI reviews ALL symbols (News + Technicals) and picks the best one.
     """
-    if check_equity_guardian():
-        logging.info("🛡️ Equity Guardian triggered. Cycle suspended for safety.")
-        return "SUCCESS"
-
     is_time, reason = is_trading_time()
     if not is_time:
         logging.info(f"🛑 SCHEDULE LOCK: {reason}. Cycle skipped.")
+        scribe.log_cycle({
+            "action": "SLEEP",
+            "sentiment_score": 0,
+            "reasoning": f"Schedule Lock: {reason}. Bot is in standby mode per user schedule."
+        }, f"Schedule: {reason}")
+        return "SUCCESS"
+
+    if check_equity_guardian():
+        logging.info("🛡️ Equity Guardian triggered. Cycle suspended for safety.")
+        scribe.log_cycle({
+            "action": "SLEEP",
+            "sentiment_score": 0,
+            "reasoning": "Equity Guardian Triggered: Portfolio drawdown exceeds safety limit. All trading suspended. Check market volatility."
+        }, "Safety: Equity Guardian Active.")
         return "SUCCESS"
 
     if not config.BOT_ACTIVE:
@@ -379,9 +389,9 @@ def check_equity_guardian():
     try:
         a = portfolio_tracker.get_analytics()
         dd = float(a.get('max_drawdown_pct', 0))
-        if dd > 5.0:
+        if dd > 15.0:
             logging.critical(f"🛡️ EQUITY GUARDIAN: Global DD {dd}% detected! LIQUIDATING ALL.")
-            telegram_bot.send_emergency_alert("EQUITY GUARDIAN", f"Total Drawdown {dd}% exceeded 5% limit. Emergency closure active.")
+            telegram_bot.send_emergency_alert("EQUITY GUARDIAN", f"Total Drawdown {dd}% exceeded 15% limit. Emergency closure active.")
             for eid, t in traders.items():
                 t.emergency_liquidate_all()
             return True

@@ -688,7 +688,6 @@
             isDemo: null,
             isTradingDay: null,
             tradingDays: [],
-            tradingDays: [],
             lastServerStartHour: null,
             lastServerEndHour: null
         };
@@ -725,11 +724,11 @@
         }
 
         async function updateCoreMetrics(data) {
-            if (dashboardState.balance !== data.balance) {
-                safeSetText('total-balance', `${data.balance.toFixed(2)} USDT`);
+            if (data.balance !== undefined && dashboardState.balance !== data.balance) {
+                safeSetText('total-balance', `${Number(data.balance).toFixed(2)} USDT`);
                 dashboardState.balance = data.balance;
             }
-            if (dashboardState.posCount !== data.positions.length) {
+            if (data.positions && dashboardState.posCount !== data.positions.length) {
                 safeSetText('pos-count', data.positions.length);
                 dashboardState.posCount = data.positions.length;
             }
@@ -755,10 +754,10 @@
                 dashboardState.isDemo = isDemo;
             }
             
-            if (dashboardState.botActive !== data.bot_active || dashboardState.isWeekend !== data.is_weekend) {
-                updatePowerUI(data.bot_active, data.is_weekend);
+            if (dashboardState.botActive !== data.bot_active || dashboardState.isTradingDay !== data.is_trading_day) {
+                updatePowerUI(data.bot_active, data.is_trading_day);
                 dashboardState.botActive = data.bot_active;
-                dashboardState.isWeekend = data.is_weekend;
+                dashboardState.isTradingDay = data.is_trading_day;
             }
         }
 
@@ -859,7 +858,8 @@
                 watchdogStatus.classList.add('hidden');
             }
 
-            const visibleEntries = entries.filter(e => e.action !== 'SLEEP' && !(e.action === 'WAIT' && (e.reasoning.includes('Quiet') || e.reasoning === 'N/A')));
+            // We skip "Quiet" WAITs to keep it clean, but kept SLEEPs (Schedule/Guardian) to inform the user
+            const visibleEntries = entries.filter(e => !(e.action === 'WAIT' && (e.reasoning.includes('Quiet') || e.reasoning === 'N/A')));
             if (container) {
                 container.innerHTML = visibleEntries.map((e, index) => {
                     const statusColor = e.action === 'BUY' ? 'bg-green-500' : e.action === 'SELL' ? 'bg-red-500' : e.action === 'CLOSE' ? 'bg-white' : 'bg-blue-500';

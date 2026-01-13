@@ -7,7 +7,7 @@
         "binance": true,
         "bybit": false
     },
-    "gemini_key": "AIzaSyDRpQzrPhIl7z9DmOaAnNDXQBzJpO52yy8",
+    "gemini_key": "AIzaSyBV6ycV1OiQOS5bg1R3lTfNc45gcGuYccs",
     "ai_provider": "gemini",
     "bot_active": true,
     "cycle_interval": 60,
@@ -16,11 +16,10 @@
         1,
         2,
         3,
-        4,
-        6
+        4
     ],
     "trading_start_hour": 0,
-    "trading_end_hour": 20,
+    "trading_end_hour": 24,
     "openai_key": "",
     "deepseek_key": "",
     "anthropic_key": "",

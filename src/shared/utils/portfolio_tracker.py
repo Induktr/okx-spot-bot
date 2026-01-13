@@ -138,8 +138,19 @@ class PortfolioTracker:
                 "net_profit": -total_fees,
                 "roi_pct": 0,
                 "profit_factor": 0,
+                "win_rate": 0,
+                "recovery_factor": 0,
+                "avg_trade_pnl": 0,
+                "kelly_criterion": 0,
+                "sharpe_ratio": 0,
+                "sortino_ratio": 0,
+                "max_loss_streak": 0,
+                "profit_efficiency": 0,
+                "expectancy": 0,
                 "initial_balance": live_balance or 0,
                 "current_balance": live_balance or 0,
+                "peak": live_balance or 0,
+                "max_drawdown_pct": 0,
                 "is_new": True
             }
 
