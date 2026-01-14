@@ -10,3 +10,8 @@ requests
 feedparser
 websockets
 pyTelegramBotAPI
+edge-tts
+moviepy
+Pillow
+requests
+aiohttp

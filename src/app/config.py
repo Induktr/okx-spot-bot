@@ -183,15 +183,28 @@ class Config(BaseSettings):
 
     USE_SANDBOX: bool = True
     
-    # Licensing
-    ASTRA_LICENSE_KEY: str = Field("DEV-MODE-KEYS", env="ASTRA_LICENSE_KEY")
+    # --- Media Core (New v1.6 Features) ---
+    ELEVENLABS_API_KEY: str = Field("", env="ELEVENLABS_API_KEY")
+    ELEVENLABS_VOICE_ID: str = Field("pNInz6obpg8ndclQU7Nc", env="ELEVENLABS_VOICE_ID")
+    PEXELS_API_KEY: str = Field("", env="PEXELS_API_KEY")
     
+    # Marketing Triggers
+    PROFIT_SCOUT_ROI_THRESHOLD: float = 30.0 # Trigger viral script if ROI > 30%
+    
+    # --- Social Media Publisher (v1.7) ---
+    TIKTOK_ACCESS_TOKEN: str = Field("", env="TIKTOK_ACCESS_TOKEN")
+    YOUTUBE_CLIENT_ID: str = Field("", env="YOUTUBE_CLIENT_ID")
+    YOUTUBE_CLIENT_SECRET: str = Field("", env="YOUTUBE_CLIENT_SECRET")
+    YOUTUBE_REFRESH_TOKEN: str = Field("", env="YOUTUBE_REFRESH_TOKEN")
+    INSTAGRAM_USER_ID: str = Field("", env="INSTAGRAM_USER_ID")
+    META_ACCESS_TOKEN: str = Field("", env="META_ACCESS_TOKEN")
+
     def check_license(self):
         """
         Licensing Module (The Guard).
         Validates the key against remote or local rules.
         """
-        valid_keys = ["ASTRA-PRO-2026", "DEV-MODE-KEYS"]
+        valid_keys = ["ASTRA-PRO-2026", "DEV-MODE-KEYS", "IND-PORT-2026"]
         if self.ASTRA_LICENSE_KEY not in valid_keys:
             import sys
             print("\n" + "="*50)

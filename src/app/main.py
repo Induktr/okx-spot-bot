@@ -1,6 +1,7 @@
 import schedule
 import time
 import logging
+import asyncio
 from src.app.config import config
 from src.shared.providers.news_aggregator import news_aggregator
 from src.features.sentiment_analyzer.ai_client import ai_client
@@ -10,7 +11,9 @@ from src.shared.utils.logger import scribe
 from src.shared.utils.portfolio_tracker import portfolio_tracker
 from src.shared.providers.telegram_provider import telegram_bot
 from src.shared.utils.report_parser import report_parser
+from src.features.media_core.orchestrator import MediaCoreOrchestrator
 import datetime
+import threading
 from concurrent.futures import ThreadPoolExecutor
 import os
 
@@ -498,9 +501,21 @@ def main():
         except Exception as e:
             logging.error(f"Telegram listener failed: {e}")
 
+    # --- Thread 1: Telegram Listener ---
     import threading
     tg_thread = threading.Thread(target=start_tg_listener, daemon=True)
     tg_thread.start()
+
+    # --- Thread 2: Media Core (Viral Marketing) ---
+    def start_media_core():
+        orchestrator = MediaCoreOrchestrator()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(orchestrator.run_forever(interval_hours=12))
+
+    media_thread = threading.Thread(target=start_media_core, daemon=True)
+    media_thread.start()
+    logging.info("📢 MEDIA CORE: Менеджер вирального контента запущен в фоне.")
 
     while True:
         now = datetime.datetime.now()
