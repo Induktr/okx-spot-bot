@@ -126,10 +126,12 @@ def astra_cycle():
                 rvol = tech_analysis.calculate_rvol(volumes)
                 rsi = tech_analysis.calculate_rsi(closes)
                 
-                # Scoring: Priority for Open Positions > Manual List > RVOL Spike
+                # Scoring: Priority for Open Positions > Manual List
                 score = 0
-                if sim in open_positions: score += 1000 # Must analyze held assets
-                if sim in config.SYMBOLS: score += 500  # High priority for watchlist
+                if sim in open_positions: score += 5000 # Critical priority for held assets
+                if sim in config.SYMBOLS: score += 1000 # High priority for favored assets
+                
+                # RVOL/Institutional Score Component
                 if rvol > 1.5: score += 100 * rvol
                 if rsi < 30 or rsi > 70: score += 50
                 
@@ -182,9 +184,10 @@ def astra_cycle():
                     p = pos[0]
                     nominal_val = float(p.get('notional', 0) or 0)
                     upnl = float(p.get('unrealizedPnl', 0) or 0)
+                    roe = float(p.get('percentage', 0) or 0)
                     est_total_fees = abs(nominal_val) * 0.0005 * 2 
                     net_pnl = upnl - est_total_fees
-                    pos_str = f"In {p['side']} (Net PnL: {net_pnl:.2f} USDT | Upnl: {upnl:.2f} | Fees: {est_total_fees:.2f})"
+                    pos_str = f"HELD POSITION: {p['side']} (ROE: {roe:+.2f}% | Net PnL: {net_pnl:.2f} USDT | Upnl: {upnl:.2f} | Fees: {est_total_fees:.2f})"
                 
                 ta_str = "| TA: N/A"
                 try:
@@ -321,8 +324,9 @@ def astra_cycle():
                             # ATOMIC FLIP
                             res = t.execute_flip(symbol, symbol_positions[0], decision, ai_budget, ai_lev)
                         else:
-                            # SIDE MATCHES - Skip leverage update for open positions as per user request
-                            res = f"SKIPPED: Leverage change ignored for existing {current_side} (Safety focus)"
+                            # SIDE MATCHES - Update protection instead of skipping
+                            res = f"RE-ALIGNED: Updating SL/TP for existing {current_side}"
+                            logging.info(f"[{eid.upper()}] {res} to match latest AI sentiment.")
                     else:
                         # NORMAL ENTRY
                         res = t.execute_order(symbol, decision, ai_budget, leverage=ai_lev)
@@ -334,7 +338,7 @@ def astra_cycle():
                         sync_status = t.sync_sl_tp(
                             updated_pos[0], 
                             tp_pct=float(analysis.get('tp_pct', 0.35)), 
-                            sl_pct=float(analysis.get('sl_pct', 0.2))
+                            sl_pct=float(analysis.get('sl_pct', 0.1)) # Tighter default: 10%
                         )
                         execution_results.append(f"{eid.upper()}: {res} ({sync_status})")
                     else:
