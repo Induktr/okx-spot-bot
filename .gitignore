@@ -18,3 +18,10 @@ astra_report_*.md
 data/admin_keys.json
 data/settings.json
 cloud_brain.py
+# Media Assets and Outputs
+src/data/marketing_outputs/*
+src/data/media_assets/*
+!src/data/marketing_outputs/.gitkeep
+!src/data/media_assets/.gitkeep
+
+client_secrets.json

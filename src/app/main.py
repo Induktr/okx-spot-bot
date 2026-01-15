@@ -51,13 +51,14 @@ def astra_cycle():
         }, f"Schedule: {reason}")
         return "SUCCESS"
 
-    if check_equity_guardian():
-        logging.info("🛡️ Equity Guardian triggered. Cycle suspended for safety.")
+    guardian_active, current_dd = check_equity_guardian()
+    if guardian_active:
+        logging.info(f"🛡️ Equity Guardian triggered (Current DD: {current_dd}%). Cycle suspended.")
         scribe.log_cycle({
             "action": "SLEEP",
             "sentiment_score": 0,
-            "reasoning": "Equity Guardian Triggered: Portfolio drawdown exceeds safety limit. All trading suspended. Check market volatility."
-        }, "Safety: Equity Guardian Active.")
+            "reasoning": f"Equity Guardian Triggered: Portfolio drawdown ({current_dd}%) exceeds safety limit. All trading suspended. Check market volatility."
+        }, f"Safety: Equity Guardian Active ({current_dd}%).")
         return "SUCCESS"
 
     if not config.BOT_ACTIVE:
@@ -392,20 +393,22 @@ def astra_cycle():
         return "ERROR"
 
 def check_equity_guardian():
-    """Nuclear Safety: Liquidate all if global drawdown > 5%."""
+    """Nuclear Safety: Liquidate all if global drawdown exceeds threshold."""
     try:
         a = portfolio_tracker.get_analytics()
         dd = float(a.get('max_drawdown_pct', 0))
-        if dd > 15.0:
-            logging.critical(f"🛡️ EQUITY GUARDIAN: Global DD {dd}% detected! LIQUIDATING ALL.")
-            telegram_bot.send_emergency_alert("EQUITY GUARDIAN", f"Total Drawdown {dd}% exceeded 15% limit. Emergency closure active.")
+        limit = 25.0 # Increased from 15% to 25% for recovery room
+        
+        if dd > limit:
+            logging.critical(f"🛡️ EQUITY GUARDIAN: Global DD {dd}% detected (Limit: {limit}%)! LIQUIDATING ALL.")
+            telegram_bot.send_emergency_alert("EQUITY GUARDIAN", f"Total Drawdown {dd}% exceeded {limit}% limit. Emergency closure active.")
             for eid, t in traders.items():
                 t.emergency_liquidate_all()
-            return True
-        return False
+            return True, dd
+        return False, dd
     except Exception as e:
         logging.error(f"Equity Guardian Error: {e}")
-        return False
+        return False, 0.0
 
 def apply_trailing_stop_engine():
     """Independent ATR-Based Trailing Stop. Moves SL to lock in profit."""

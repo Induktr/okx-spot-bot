@@ -192,6 +192,8 @@ class Config(BaseSettings):
     PROFIT_SCOUT_ROI_THRESHOLD: float = 30.0 # Trigger viral script if ROI > 30%
     
     # --- Social Media Publisher (v1.7) ---
+    TIKTOK_CLIENT_KEY: str = Field("", env="TIKTOK_CLIENT_KEY")
+    TIKTOK_CLIENT_SECRET: str = Field("", env="TIKTOK_CLIENT_SECRET")
     TIKTOK_ACCESS_TOKEN: str = Field("", env="TIKTOK_ACCESS_TOKEN")
     YOUTUBE_CLIENT_ID: str = Field("", env="YOUTUBE_CLIENT_ID")
     YOUTUBE_CLIENT_SECRET: str = Field("", env="YOUTUBE_CLIENT_SECRET")
