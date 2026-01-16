@@ -6,7 +6,7 @@ from google.genai import types
 
 class ScriptWriter:
     """
-    Transforms raw trading data into viral TikTok/Shorts scripts using Gemini 2.0 Flash Lite.
+    Transforms raw trading data into viral TikTok/Shorts scripts and Telegram reports.
     """
     def __init__(self):
         self.api_key = config.GEMINI_API_KEY
@@ -49,5 +49,31 @@ class ScriptWriter:
         except Exception as e:
             logging.error(f"ScriptWriter Error: {e}")
             return f"While you were sleeping, A.S.T.R.A. extracted {win_data['roi']}% profit on {win_data['symbol']}. Visit induktr.com for details."
+
+    def generate_rephrased_report(self, win_data):
+        """
+        Generates a concise, high-energy Telegram post for a trade.
+        """
+        prompt = (
+            f"Write a catchy, aggressive Telegram post for a profitable trade:\n"
+            f"- Asset: {win_data['symbol']}\n"
+            f"- ROI: {win_data['roi']}%\n"
+            f"- Profit: {win_data['pnl']} USDT\n"
+            "Use emojis, short sentences, and a 'Cyberpunk Alpha' tone. "
+            "Mention A.S.T.R.A. as the source of signal. Don't be boring."
+        )
+
+        try:
+            response = self.client.models.generate_content(
+                model="gemini-2.0-flash-lite",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=self.system_instruction
+                )
+            )
+            return response.text.strip()
+        except Exception as e:
+            logging.error(f"ScriptWriter Report Error: {e}")
+            return f"🔥 A.S.T.R.A. WIN: {win_data['symbol']} | ROI: {win_data['roi']}% | Profit: {win_data['pnl']} USDT"
 
 script_writer = ScriptWriter()

@@ -1,27 +1,18 @@
-*.pyc
+.venv/
 __pycache__/
-
-.vscode/
-.idea/
-
-venv/
-env/
-
+*.pyc
 .env
+.idea/
+.vscode/
 
-*.log
-*.sqlite3
-
-astra_report_*.md
-
-# SECRETS (Do NOT Commit)
-data/admin_keys.json
-data/settings.json
-cloud_brain.py
-# Media Assets and Outputs
-src/data/marketing_outputs/*
-src/data/media_assets/*
-!src/data/marketing_outputs/.gitkeep
-!src/data/media_assets/.gitkeep
-
+# Media assets
+src/data/marketing_outputs/
+src/data/media_assets/
 client_secrets.json
+
+# Session secrets & Cookies
+data/
+*.json
+*.txt
+!requirements.txt
+!.env.example

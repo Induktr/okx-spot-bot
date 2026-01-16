@@ -199,6 +199,8 @@ class Config(BaseSettings):
     YOUTUBE_CLIENT_SECRET: str = Field("", env="YOUTUBE_CLIENT_SECRET")
     YOUTUBE_REFRESH_TOKEN: str = Field("", env="YOUTUBE_REFRESH_TOKEN")
     INSTAGRAM_USER_ID: str = Field("", env="INSTAGRAM_USER_ID")
+    INSTAGRAM_USERNAME: str = Field("", env="INSTAGRAM_USERNAME")
+    INSTAGRAM_PASSWORD: str = Field("", env="INSTAGRAM_PASSWORD")
     META_ACCESS_TOKEN: str = Field("", env="META_ACCESS_TOKEN")
 
     def check_license(self):

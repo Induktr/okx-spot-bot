@@ -15,3 +15,5 @@ moviepy
 Pillow
 requests
 aiohttp
+instagrapi
+pycryptodomex
