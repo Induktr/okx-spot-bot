@@ -95,8 +95,12 @@ class SocialPublisher:
 
             return f"SUCCESS: https://youtu.be/{video_id}"
         except Exception as e:
+            error_str = str(e)
+            if "uploadLimitExceeded" in error_str:
+                logging.error("❌ YouTube Error: Daily Upload Limit Exceeded. You must wait 24 hours before posting more videos to this account.")
+                return "ERROR: YouTube Daily Limit Hit. Please wait 24 hours."
             logging.error(f"❌ YouTube Error: {e}")
-            return f"ERROR: {str(e)}"
+            return f"ERROR: {error_str}"
 
     async def _add_youtube_comment(self, video_id, text):
         try:
@@ -109,98 +113,46 @@ class SocialPublisher:
     async def _post_to_tiktok(self, video_path, text):
         """
         TikTok Posting Logic.
-        Tries Cookie-Method if file exists, otherwise tries official API.
+        Switching to Stealth Cookie-based method (Playwright) by default.
         """
-        cookie_path = os.path.join(os.getcwd(), "data", "tiktok_cookies.txt")
-        
-        # 1. Стелс-метод через Куки (Партизанский)
-        if os.path.exists(cookie_path):
-            return await self._post_to_tiktok_cookies(video_path, text)
-
-        # 2. Официальный API
-        if not self.tiktok_token:
-            logging.warning("🎬 TIKTOK: No access token or cookies found. Skipping.")
-            return "SKIPPED_NO_AUTH"
-
         try:
-            logging.info("📱 TIKTOK: Initiating official API upload...")
-            url = "https://open.tiktokapis.com/v2/post/publish/video/init/"
-            headers = {
-                "Authorization": f"Bearer {self.tiktok_token}",
-                "Content-Type": "application/json; charset=UTF-8"
-            }
+            from src.shared.utils.tiktok_stealth import tiktok_stealth_upload
             
-            abs_path = os.path.abspath(video_path)
-            file_size = os.path.getsize(abs_path)
-
-            data = {
-                "post_info": {
-                    "title": text[:150],
-                    "privacy_level": "PUBLIC_TO_EVERYONE",
-                    "disable_duet": False,
-                    "disable_stitch": False,
-                    "disable_comment": False
-                },
-                "source_info": {
-                    "source": "FILE_UPLOAD",
-                    "video_size": file_size,
-                    "chunk_size": file_size,
-                    "total_chunk_count": 1
-                }
-            }
-
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, headers=headers, json=data) as resp:
-                    init_res = await resp.json()
-                    if resp.status != 200:
-                        raise Exception(f"Init failed: {init_res}")
-                    
-                    upload_url = init_res['data']['upload_url']
-                    publish_id = init_res['data']['publish_id']
-
-                logging.info("📱 TIKTOK: Pushing file to server...")
-                with open(abs_path, 'rb') as f:
-                    async with session.put(upload_url, data=f, headers={"Content-Range": f"bytes 0-{file_size-1}/{file_size}"}) as upload_resp:
-                        if upload_resp.status != 200 and upload_resp.status != 201:
-                            res_text = await upload_resp.text()
-                            raise Exception(f"Upload failed: {res_text}")
-
-            logging.info(f"✅ TIKTOK: Posted via API! Publish ID: {publish_id}")
-            return f"SUCCESS: API ID {publish_id}"
-
+            cookie_path = os.path.join(os.getcwd(), "data", "tiktok_cookies.txt")
+            if not os.path.exists(cookie_path):
+                logging.warning("🎬 TIKTOK: No cookies found in 'data/tiktok_cookies.txt'. Skipping stealth upload.")
+                return "SKIPPED_NO_COOKIES"
+            
+            logging.info(f"🎬 TIKTOK: Starting Stealth Playwright upload using {cookie_path}...")
+            result = await tiktok_stealth_upload(video_path, text, cookie_path)
+            
+            if result == "SUCCESS":
+                logging.info("✅ TIKTOK: Stealth Post Successful via Playwright!")
+                return "SUCCESS: Stealth Upload Completed"
+            else:
+                logging.error(f"❌ TikTok Stealth Error: {result}")
+                return f"ERROR: {result}"
+                
         except Exception as e:
-            logging.error(f"❌ TikTok API Error: {e}")
+            logging.error(f"❌ TikTok Cookie Error: {e}")
             return f"ERROR: {str(e)}"
 
     async def _post_to_tiktok_cookies(self, video_path, description):
         """
-        Uploads to TikTok using cookies (Simulating browser).
+        Uploads to TikTok using cookies and Playwright (Super Stealth).
         """
-        import asyncio
         try:
-            from tiktok_uploader.upload import upload_video
+            from src.shared.utils.tiktok_stealth import tiktok_stealth_upload
             cookie_path = os.path.join(os.getcwd(), "data", "tiktok_cookies.txt")
             
-            # tiktok-uploader работает синхронно, поэтому запускаем в треде
-            def do_upload():
-                # Возвращает True/False или список
-                return upload_video(
-                    video_path,
-                    description=description,
-                    cookies=cookie_path,
-                    browser='chrome',
-                    headless=True # Не открывать окно браузера (чтобы не мешать пользователю)
-                )
+            logging.info("🎬 TIKTOK: Starting Super-Stealth Playwright upload...")
+            result = await tiktok_stealth_upload(video_path, description, cookie_path)
             
-            logging.info("🎬 TIKTOK: Starting stealth upload via Cookies...")
-            loop = asyncio.get_event_loop()
-            success = await loop.run_in_executor(None, do_upload)
-            
-            if success:
-                logging.info("✅ TIKTOK: Stealth Post Successful!")
+            if result == "SUCCESS":
+                logging.info("✅ TIKTOK: Stealth Post Successful via Playwright!")
                 return "SUCCESS: Stealth Upload Completed"
             else:
-                return "ERROR: Stealth Upload Failed (Maybe cookies expired?)"
+                return f"ERROR: {result}"
                 
         except Exception as e:
             logging.error(f"❌ TikTok Cookie Error: {e}")
@@ -246,19 +198,26 @@ class SocialPublisher:
                     return "ERROR: Challenge Required. Confirm on your phone."
                 raise login_err
             
-            logging.info("📸 INSTAGRAM: Uploading Reel...")
+            logging.info("📸 INSTAGRAM: Starting upload process...")
             
-            # Загрузка видео (Используем более универсальный метод)
-            media = cl.video_upload(
-                path=video_path,
-                caption=caption
-            )
-            
-            media_pk = media.pk
-            short_code = media.code
-            
-            logging.info(f"✅ INSTAGRAM: Published! Link: https://www.instagram.com/reel/{short_code}/")
-            return f"SUCCESS: https://www.instagram.com/reel/{short_code}/"
+            # Загрузка видео с повторными попытками
+            for attempt in range(3):
+                try:
+                    logging.info(f"📸 INSTAGRAM: Upload attempt {attempt + 1}...")
+                    media = cl.video_upload(
+                        path=video_path,
+                        caption=caption
+                    )
+                    short_code = media.code
+                    logging.info(f"✅ INSTAGRAM: Published! Link: https://www.instagram.com/reel/{short_code}/")
+                    return f"SUCCESS: https://www.instagram.com/reel/{short_code}/"
+                except Exception as upload_err:
+                    if "media_needs_reupload" in str(upload_err) and attempt < 2:
+                        logging.warning("⚠️ INSTAGRAM: Server requested re-upload. Retrying in 5s...")
+                        import time
+                        time.sleep(5)
+                        continue
+                    raise upload_err
 
         except Exception as e:
             logging.error(f"❌ Instagram Error: {e}")

@@ -269,7 +269,7 @@ class Trader:
                 
                 # Broad search in markets
                 for m_id, m_info in self.exchange.markets.items():
-                    if search_term in m_id.upper() and (':USDT' in m_id or '-SWAP' in m_id):
+                    if search_term in m_id.upper() and (':USDT' in m_id or '-SWAP' in m_id or search_term == m_id.upper().replace('-USDT', '')):
                         logging.info(f"[{self.exchange_id}] Deep normalizing symbol: {symbol} -> {m_id}")
                         symbol = m_id
                         found = True
@@ -284,7 +284,8 @@ class Trader:
                             break
                             
                 if not found:
-                    return f"Symbol Error: {symbol} not found on {self.exchange_id}. (Note: Rebranded assets like FET/RNDR might be ASI/RENDER)"
+                    logging.error(f"Symbol Error: {symbol} not found on {self.exchange_id}. Available symbols: {list(self.exchange.markets.keys())[:10]}...")
+                    return f"Symbol Error: {symbol} not found on {self.exchange_id}. Keeping symbol for reporting."
 
             market = self.exchange.market(symbol)
             current_price = self.get_ticker(symbol)

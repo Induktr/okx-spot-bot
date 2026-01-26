@@ -1,0 +1,127 @@
+<!-- Detail Modal -->
+<div id="detail-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 border-blue-500/30">
+        <div class="flex justify-between items-start mb-6">
+            <h1 id="modal-title" class="text-3xl font-orbitron font-bold text-white uppercase tracking-tighter"></h1>
+            <button onclick="closeModal()" class="text-gray-500 hover:text-white transition-colors">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white/5 p-4 rounded-lg">
+                <p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Exchange</p>
+                <p id="modal-exchange" class="text-sm font-semibold text-blue-400">CONNECTING...</p>
+            </div>
+            <div class="bg-white/5 p-4 rounded-lg">
+                <p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Asset</p>
+                <p id="modal-asset" class="text-sm font-semibold text-white"></p>
+            </div>
+            <div class="bg-white/5 p-4 rounded-lg">
+                <p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Amount</p>
+                <p id="modal-amount" class="text-sm font-semibold text-white"></p>
+            </div>
+            <div class="bg-white/5 p-4 rounded-lg">
+                <p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Risk Factor</p>
+                <p id="modal-risk" class="text-sm font-bold"></p>
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <div>
+                <h3 class="text-xs font-bold text-blue-500 uppercase tracking-widest mb-2">AI Execution Reasoning</h3>
+                <p id="modal-reasoning" class="text-gray-300 text-sm leading-relaxed bg-white/5 p-4 rounded-lg italic"></p>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="border-l-2 border-green-500 pl-4">
+                    <p class="text-[10px] text-gray-500 uppercase">Target Profit</p>
+                    <p id="modal-tp" class="text-lg font-orbitron text-green-400"></p>
+                </div>
+                <div class="border-l-2 border-red-500 pl-4">
+                    <p class="text-[10px] text-gray-500 uppercase">Stop Loss</p>
+                    <p id="modal-sl" class="text-lg font-orbitron text-red-400"></p>
+                </div>
+            </div>
+        </div>
+        <button onclick="closeModal()" class="w-full mt-8 bg-white/10 hover:bg-white/20 py-3 rounded-lg text-sm font-bold transition-all">CLOSE REPORT</button>
+    </div>
+</div>
+
+<!-- API Credentials Modal -->
+<div id="api-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-md p-8 border-blue-500/30">
+        <h2 class="text-2xl font-orbitron font-bold text-white mb-6 uppercase tracking-wider">Connect Exchange API</h2>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">AI Provider</label>
+                <select id="ai-provider-select" onchange="toggleAIInputs()" class="w-full bg-black/20 border border-white/10 rounded p-3 text-white focus:border-blue-500 focus:outline-none transition-colors font-mono text-sm">
+                    <option value="gemini">Google Gemini 2.0</option>
+                    <option value="openai">OpenAI (GPT-4)</option>
+                    <option value="deepseek">DeepSeek V3</option>
+                </select>
+            </div>
+            <div id="input-gemini" class="ai-input-group">
+                <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Gemini API Key</label>
+                <input type="password" id="gemini-key-input" placeholder="Paste Key..." class="w-full bg-black/40 border border-white/10 rounded p-3 text-white text-sm">
+            </div>
+            <div>
+                <label class="text-[10px] text-gray-500 font-bold uppercase mb-1 block">API Key</label>
+                <input type="password" id="api-key-input" class="w-full bg-black/40 border border-white/10 rounded px-4 py-3 text-sm text-white">
+            </div>
+            <div>
+                <label class="text-[10px] text-gray-500 font-bold uppercase mb-1 block">Secret Key</label>
+                <input type="password" id="api-secret-input" class="w-full bg-black/40 border border-white/10 rounded px-4 py-3 text-sm text-white">
+            </div>
+            <div id="passphrase-container">
+                <label class="text-[10px] text-gray-500 font-bold uppercase mb-1 block">Passphrase (OKX Only)</label>
+                <input type="password" id="api-pass-input" class="w-full bg-black/40 border border-white/10 rounded px-4 py-3 text-sm text-white">
+            </div>
+        </div>
+        <div class="flex gap-4 mt-8">
+            <button onclick="closeAPIModal()" class="flex-1 px-6 py-3 border border-white/5 text-gray-400 font-bold text-xs uppercase hover:bg-white/5 rounded">Cancel</button>
+            <button onclick="saveAPIKeys()" class="flex-1 px-6 py-3 bg-blue-600 text-white font-bold text-xs uppercase hover:bg-blue-500 rounded">Save & Connect</button>
+        </div>
+    </div>
+</div>
+
+<!-- Portfolio Breakdown Modal -->
+<div id="balance-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-sm p-8 border-blue-500/30">
+        <h2 class="text-xl font-orbitron font-bold text-white mb-6 uppercase tracking-wider text-center">Portfolio Breakdown</h2>
+        <div id="balance-breakdown-list" class="space-y-4"></div>
+        <button onclick="closeBalanceModal()" class="w-full mt-8 bg-white/10 hover:bg-white/20 py-3 rounded-lg text-xs font-bold uppercase transition-all">Close</button>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-modal" class="fixed inset-0 modal-overlay z-[100] hidden flex items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-sm p-8 border-red-500/30 text-center">
+        <div class="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        </div>
+        <h2 class="text-xl font-orbitron font-bold text-white mb-2 uppercase tracking-wider">Secure Wipe</h2>
+        <p class="text-sm text-gray-400 mb-8 leading-relaxed">Are you absolutely sure you want to delete <span class="text-red-400 font-bold">ALL</span> trading reports?</p>
+        <div class="flex gap-4">
+            <button onclick="closeDeleteModal()" class="flex-1 px-4 py-3 border border-white/5 text-gray-500 font-bold text-xs uppercase rounded">Cancel</button>
+            <button onclick="executeDeleteReports()" class="flex-1 px-4 py-3 bg-red-600 text-white font-bold text-xs uppercase rounded">Wipe Data</button>
+        </div>
+    </div>
+</div>
+
+<!-- Manual Reset Modal -->
+<div id="reset-modal" class="fixed inset-0 modal-overlay z-[100] hidden flex items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-sm p-8 border-blue-500/30 text-center">
+        <div class="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <h2 class="text-xl font-orbitron font-bold text-white mb-2 uppercase tracking-wider">Manual Initialization</h2>
+        <p class="text-sm text-gray-400 mb-6 leading-relaxed">Set your starting capital.</p>
+        <div class="mb-8">
+            <input type="number" id="manual-init-balance" step="0.01" class="w-full bg-black/40 border border-white/10 rounded px-4 py-3 text-white font-orbitron focus:border-blue-500 outline-none transition-all placeholder:text-gray-700" placeholder="Enter Amount (e.g. 150.00)">
+        </div>
+        <div class="flex gap-4">
+            <button onclick="closeResetModal()" class="flex-1 px-4 py-3 border border-white/5 text-gray-500 font-bold text-xs uppercase hover:bg-white/5 transition-all rounded">Cancel</button>
+            <button onclick="executeManualReset()" class="flex-1 px-4 py-3 bg-blue-600 text-white font-bold text-xs uppercase hover:bg-blue-500 transition-all rounded shadow-lg shadow-blue-500/20">Confirm Reset</button>
+        </div>
+    </div>
+</div>

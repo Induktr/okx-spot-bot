@@ -1,37 +1,52 @@
-import os
-import google_auth_oauthlib.flow
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
 
-# Scopes required for YouTube Upload
+import os
+import sys
+
+# Add project root to sys.path
+sys.path.append(os.getcwd())
+
+from google_auth_oauthlib.flow import InstalledAppFlow
+
+# Full access to YouTube-uploads
 SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
 
-def main():
-    # 1. Point to the client_secrets.json you downloaded
-    client_secrets_file = "client_secrets.json"
+def get_refresh_token():
+    # We use your credentials from .env or you can use client_secrets.json
+    from src.app.config import config
     
-    if not os.path.exists(client_secrets_file):
-        print(f"❌ Error: {client_secrets_file} not found in project root.")
+    client_id = config.YOUTUBE_CLIENT_ID
+    client_secret = config.YOUTUBE_CLIENT_SECRET
+    
+    if not client_id or not client_secret:
+        print("❌ ERROR: YOUTUBE_CLIENT_ID and YOUTUBE_CLIENT_SECRET must be set in .env")
         return
 
-    # 2. Setup the flow
-    flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
-        client_secrets_file, SCOPES
+    client_config = {
+        "web": {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+        }
+    }
+
+    # Force "offline" access to get a REFRESH token, not just an access token
+    flow = InstalledAppFlow.from_client_config(
+        client_config, 
+        scopes=SCOPES,
+        redirect_uri='http://localhost:8080/'
     )
 
-    # 3. Run the local server for auth
-    # This will open your browser
-    credentials = flow.run_local_server(port=0)
+    # This will open a browser or provide a link
+    # prompt='consent' ensures we get a refresh_token every time during test
+    creds = flow.run_local_server(port=8080, prompt='consent', access_type='offline')
 
-    # 4. Extract tokens
-    print("\n" + "="*50)
-    print("✅ AUTHENTICATION SUCCESSFUL!")
-    print("="*50)
-    print(f"CLIENT_ID: {credentials.client_id}")
-    print(f"CLIENT_SECRET: {credentials.client_secret}")
-    print(f"REFRESH_TOKEN: {credentials.refresh_token}")
-    print("="*50)
-    print("\n👉 COPY these values to your .env file.")
+    print("\n" + "="*60)
+    print("✅ SUCCESS! YOUR YOUTUBE REFRESH TOKEN IS:")
+    print("="*60)
+    print(creds.refresh_token)
+    print("="*60)
+    print("\nCopy this value into your .env file as YOUTUBE_REFRESH_TOKEN")
 
 if __name__ == "__main__":
-    main()
+    get_refresh_token()

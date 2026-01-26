@@ -17,3 +17,7 @@ requests
 aiohttp
 instagrapi
 pycryptodomex
+openai
+tiktok-uploader
+playwright
+yt_dlp

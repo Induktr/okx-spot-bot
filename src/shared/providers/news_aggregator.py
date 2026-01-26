@@ -83,6 +83,17 @@ class NewsAggregator:
         "Partnership", "Upgrade", "Mainnet", "Protocol", "Regulation", "Ban"
     ]
 
+    def get_viral_hooks(self) -> list:
+        """Returns a list of high-engagement hooks for the video start."""
+        return [
+            "THIS IS NOT A DRILL! 🚨",
+            "THE AI JUST FOUND A WHALE MOVE 🐋",
+            "STOP TRADING MANUALLY! 🛑",
+            "BITCOIN INSIDER SIGNAL? 🕵️",
+            "MY BOT IS PRINTING AGAIN 💸",
+            "WATCH THIS BEFORE IT'S TOO LATE ⏳"
+        ]
+
     def has_significant_events(self, headlines_text: str) -> bool:
         """
         Smart Wake-Up System. 

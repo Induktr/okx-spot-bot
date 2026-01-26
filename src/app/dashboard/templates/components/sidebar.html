@@ -1,0 +1,66 @@
+<div class="space-y-6">
+    <!-- Market Intelligence Widget -->
+    <div class="glass-panel p-6 border-white/5">
+        <div class="flex justify-between items-center mb-8">
+            <h3 class="text-xs font-bold uppercase text-gray-400 tracking-widest">Market Intelligence</h3>
+            <div class="p-2 bg-blue-500/10 rounded-lg"><svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
+        </div>
+        <div class="flex items-end gap-2 mb-10">
+            <h2 id="market-sentiment" class="text-5xl font-orbitron font-bold text-white">0</h2>
+            <span id="sentiment-label" class="text-[10px] text-blue-400 font-bold uppercase pb-1 tracking-widest">Neutral Integration</span>
+        </div>
+        <div class="flex justify-between items-center mb-4">
+            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Active Positions</p>
+            <span id="pos-count" class="text-xs font-orbitron text-white">0</span>
+        </div>
+        <div id="positions-container" class="space-y-3"></div>
+    </div>
+
+    <!-- Asset Management Widget -->
+    <div class="glass-panel p-6 shadow-xl border-blue-500/20">
+        <h3 class="text-sm font-bold uppercase text-gray-400 mb-4 tracking-widest">Global Settings</h3>
+        <div class="mb-6">
+            <div class="flex justify-between items-center mb-2">
+                <p class="text-[10px] text-gray-500 font-bold uppercase">Primary Exchange</p>
+                <button onclick="openAPIModal()" class="text-[10px] text-blue-400 hover:text-white transition-all font-bold uppercase tracking-tighter">[ Connect API ]</button>
+            </div>
+            <select id="exchange-select" onchange="switchExchange()" class="bg-black/40 border border-white/10 rounded px-3 py-2 text-xs w-full focus:outline-none focus:border-blue-500 text-blue-400 font-bold">
+                <option value="okx">OKX (PERPETUAL)</option>
+                <option value="binance">BINANCE (FUTURES)</option>
+            </select>
+        </div>
+
+        <!-- Smart Schedule -->
+        <div class="mb-6 bg-blue-500/5 p-4 rounded border border-blue-500/10">
+            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-3">Smart Schedule</p>
+            <div id="day-picker" class="flex justify-between gap-1 mb-3">
+                <button onclick="toggleDay(0)" id="day-0" class="flex-1 py-1 px-1 rounded bg-black/40 border border-white/5 text-[10px] font-bold text-gray-600">M</button>
+                <button onclick="toggleDay(1)" id="day-1" class="flex-1 py-1 px-1 rounded bg-black/40 border border-white/5 text-[10px] font-bold text-gray-600">T</button>
+                <button onclick="toggleDay(2)" id="day-2" class="flex-1 py-1 px-1 rounded bg-black/40 border border-white/5 text-[10px] font-bold text-gray-600">W</button>
+                <button onclick="toggleDay(3)" id="day-3" class="flex-1 py-1 px-1 rounded bg-black/40 border border-white/5 text-[10px] font-bold text-gray-600">T</button>
+                <button onclick="toggleDay(4)" id="day-4" class="flex-1 py-1 px-1 rounded bg-black/40 border border-white/5 text-[10px] font-bold text-gray-600">F</button>
+                <button onclick="toggleDay(5)" id="day-5" class="flex-1 py-1 px-1 rounded bg-black/40 border border-white/5 text-[10px] font-bold text-gray-600">S</button>
+                <button onclick="toggleDay(6)" id="day-6" class="flex-1 py-1 px-1 rounded bg-black/40 border border-white/5 text-[10px] font-bold text-gray-600">S</button>
+            </div>
+            <div class="flex items-center justify-between gap-2 border-t border-white/5 pt-3">
+                 <input type="number" id="sched-start" min="0" max="24" class="bg-black/40 border border-white/10 rounded px-1 py-1 text-[10px] w-10 text-blue-400 font-bold">
+                 <span class="text-[9px] text-gray-600">TO</span>
+                 <input type="number" id="sched-end" min="0" max="24" class="bg-black/40 border border-white/10 rounded px-1 py-1 text-[10px] w-10 text-blue-400 font-bold">
+                 <button onclick="updateHours()" class="text-[9px] font-bold text-blue-400 border border-blue-500/30 px-2 py-1 rounded">SET</button>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between mb-6 bg-blue-500/5 p-3 rounded border border-blue-500/10">
+            <div><p class="text-[10px] text-gray-500 font-bold uppercase">Trading Mode</p><p id="mode-status" class="text-[11px] font-bold text-blue-400">DEMO MODE</p></div>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="demo-toggle" onchange="switchMode()" class="sr-only peer">
+                <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+        </div>
+        <div class="flex gap-2">
+            <input type="text" id="new-symbol" placeholder="SUI/USDT:USDT" class="bg-black/40 border border-white/10 rounded px-3 py-2 text-xs w-full focus:outline-none focus:border-blue-500">
+            <button onclick="addSymbol()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-xs font-bold transition-colors">+</button>
+        </div>
+        <div id="symbols-list" class="mt-4 space-y-2 max-h-40 overflow-y-auto pr-1"></div>
+    </div>
+</div>

@@ -42,6 +42,10 @@ class Config(BaseSettings):
     DEEPSEEK_API_KEY: str = Field("", env="DEEPSEEK_API_KEY")
     DEEPSEEK_MODEL: str = "deepseek-chat"
 
+    # Groq (Free & Super Fast - Recommended for Marketing)
+    GROQ_API_KEY: str = Field("", env="GROQ_API_KEY")
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    
     # Anthropic (Claude)
     ANTHROPIC_API_KEY: str = Field("", env="ANTHROPIC_API_KEY")
     ANTHROPIC_MODEL: str = "claude-3-5-sonnet-20241022"
@@ -105,6 +109,7 @@ class Config(BaseSettings):
                 self.GEMINI_API_KEY = data.get("gemini_key", self.GEMINI_API_KEY)
                 self.AI_PROVIDER = data.get("ai_provider", "gemini")
                 self.BOT_ACTIVE = data.get("bot_active", True)
+                self.FORCE_CYCLE = data.get("force_cycle", False)
                 self.CYCLE_INTERVAL_MINUTES = data.get("cycle_interval", 60)
                 self.TRADING_DAYS = data.get("trading_days", [0, 1, 2, 3, 4])
                 self.TRADING_START_HOUR = data.get("trading_start_hour", 0)
@@ -126,6 +131,10 @@ class Config(BaseSettings):
                 self.TELEGRAM_CHAT_ID = data.get("tg_chat_id", self.TELEGRAM_CHAT_ID)
                 self.MAX_LEVERAGE = data.get("max_leverage", 10)
                 self.TG_SIGNALS_ACTIVE = data.get("tg_signals_active", True)
+                
+                # Inworld AI
+                self.INWORLD_API_KEY = data.get("inworld_api_key", self.INWORLD_API_KEY)
+                self.INWORLD_VOICE_ID = data.get("inworld_voice_id", self.INWORLD_VOICE_ID)
         except Exception:
             self.ACTIVE_EXCHANGES = ["okx"]
             self.SANDBOX_MODES = {"okx": True, "binance": False, "bybit": False}
@@ -157,7 +166,9 @@ class Config(BaseSettings):
                 "tg_token": self.TELEGRAM_TOKEN,
                 "tg_chat_id": self.TELEGRAM_CHAT_ID,
                 "max_leverage": self.MAX_LEVERAGE,
-                "tg_signals_active": self.TG_SIGNALS_ACTIVE
+                "tg_signals_active": self.TG_SIGNALS_ACTIVE,
+                "inworld_api_key": self.INWORLD_API_KEY,
+                "inworld_voice_id": self.INWORLD_VOICE_ID
             }, f, indent=4)
     
     # Trading Settings
@@ -186,6 +197,8 @@ class Config(BaseSettings):
     # --- Media Core (New v1.6 Features) ---
     ELEVENLABS_API_KEY: str = Field("", env="ELEVENLABS_API_KEY")
     ELEVENLABS_VOICE_ID: str = Field("pNInz6obpg8ndclQU7Nc", env="ELEVENLABS_VOICE_ID")
+    INWORLD_API_KEY: str = Field("", env="INWORLD_API_KEY")
+    INWORLD_VOICE_ID: str = Field("default-imu7-rwq7tjttd9urvrx5a__induktr", env="INWORLD_VOICE_ID")
     PEXELS_API_KEY: str = Field("", env="PEXELS_API_KEY")
     
     # Marketing Triggers

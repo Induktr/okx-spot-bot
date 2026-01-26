@@ -43,6 +43,8 @@ class Scribe:
         # Prepare Full JSON Payload for Parsing
         log_payload = sentiment_data.copy()
         log_payload['execution_summary'] = execution_result
+        if 'budget_usdt' not in log_payload and 'budget' in log_payload:
+            log_payload['budget_usdt'] = log_payload['budget']
             
         report_entry = f"""
 ## Cycle Entry: {timestamp}

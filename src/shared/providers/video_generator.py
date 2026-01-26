@@ -1,68 +1,104 @@
 import logging
 import os
+import random
 from PIL import Image, ImageDraw, ImageFont
 from src.app.config import config
 
 class VideoGenerator:
     """
-    Handles media generation. Connects to Runway/KlingAI API if available, 
-    otherwise falls back to generating high-quality PnL summary cards via PIL.
+    Advanced Media Generator with Adaptive Theme Engine.
+    Creates unique, high-end PnL cards for every trade with randomized styles.
     """
     def __init__(self):
         self.output_dir = "src/data/marketing_outputs"
         os.makedirs(self.output_dir, exist_ok=True)
 
-    def generate_marketing_media(self, win_data, script_text=None):
+    def generate_marketing_media(self, win_data, style_directive="DEFAULT"):
         """
-        Main entry point for media generation.
+        Main entry point. Generates a unique PNG card.
         """
-        # FUTURE: Implement KlingAI/Runway API here
-        # if config.RUNWAY_API_KEY:
-        #    return self._generate_ai_video(win_data, script_text)
-        
-        return self._generate_pnl_card(win_data)
+        logging.info(f"🎨 VIDEO GEN: Triggering Adaptive Theme Engine...")
+        return self._generate_styled_card(win_data, style_directive)
 
-    def _generate_pnl_card(self, win_data):
-        """
-        Generates a sleek, cyberpunk-style PnL card for high-ROI trades.
-        """
+    def _generate_styled_card(self, win_data, style_directive):
         try:
-            # Create a dark canvas
-            width, height = 1080, 1920 # Vertical format for TikTok/Shorts
-            card = Image.new('RGB', (width, height), color=(10, 10, 20)) # Dark Blue/Black
+            width, height = 1080, 1920
+            
+            # --- ADAPTIVE THEME ENGINE (Ultra-Readable V2) ---
+            themes = [
+                { # Premium White (Best for complex backgrounds)
+                    "bg": (255, 255, 255, 255), "accent": (0, 100, 255), "text": (20, 20, 20),
+                    "font": "arialbd.ttf", "radius": 50, "name": "PREMIUM_WHITE"
+                },
+                { # Stealth Dark (Solid)
+                    "bg": (15, 15, 20, 255), "accent": (0, 255, 180), "text": (255, 255, 255),
+                    "font": "impact.ttf", "radius": 40, "name": "STEALTH_DARK"
+                },
+                { # Cyber Neon
+                    "bg": (10, 10, 25, 255), "accent": (0, 255, 255), "text": (255, 255, 255),
+                    "font": "impact.ttf", "radius": 60, "name": "CYBER_NEON"
+                },
+                { # Gold Luxury
+                    "bg": (15, 15, 15, 255), "accent": (212, 175, 55), "text": (255, 255, 255),
+                    "font": "arialbd.ttf", "radius": 40, "name": "GOLD_LUXURY"
+                }
+            ]
+            
+            # Select random theme based on trade_id to keep it consistent for one trade but unique for others
+            random.seed(win_data.get('id', 0))
+            theme = random.choice(themes)
+            
+            card = Image.new('RGBA', (width, height), color=(0,0,0,0))
             draw = ImageDraw.Draw(card)
 
-            # Draw some 'Cyber' elements
-            draw.rectangle([50, 50, 1030, 1870], outline=(0, 255, 200), width=10) # Neon Border
+            # --- RENDER GLASS PLATE (Rounded & Textured) ---
+            plate_box = [120, 650, 960, 1250] # Adjusted to be more central for better visibility
+            r = theme['radius']
             
-            # Load font (falling back to default if necessary)
-            try:
-                # Assuming a font might be available or we use default
-                font_path = "C:/Windows/Fonts/arialbd.ttf" # Common Windows path
-                font_large = ImageFont.truetype(font_path, 120)
-                font_medium = ImageFont.truetype(font_path, 80)
-                font_small = ImageFont.truetype(font_path, 50)
-            except:
-                font_large = font_medium = font_small = ImageFont.load_default()
+            # 1. Subtle Outer Shadow
+            shadow_box = [plate_box[0]+12, plate_box[1]+12, plate_box[2]+12, plate_box[3]+12]
+            draw.rounded_rectangle(shadow_box, radius=r, fill=(0, 0, 0, 100))
 
-            # Text Overlay
-            draw.text((width//2, 300), "A.S.T.R.A. WIN", font=font_large, fill=(0, 255, 200), anchor="mm")
-            draw.text((width//2, 500), f"{win_data['symbol']}", font=font_medium, fill=(255, 255, 255), anchor="mm")
+            # 2. Main Solid Background (100% Opaque)
+            draw.rounded_rectangle(plate_box, radius=r, fill=theme['bg'], outline=theme['accent'], width=10)
             
-            roi_color = (0, 255, 0) if win_data['roi'] > 0 else (255, 0, 0)
-            draw.text((width//2, 800), f"+{win_data['roi']}%", font=font_large, fill=roi_color, anchor="mm")
-            draw.text((width//2, 950), "ROI EXTRACTED", font=font_small, fill=(200, 200, 200), anchor="mm")
+            # 3. Inner Border (Double line effect for premium look)
+            inner_box = [plate_box[0]+15, plate_box[1]+15, plate_box[2]-15, plate_box[3]-15]
+            draw.rounded_rectangle(inner_box, radius=r-15, outline=(255, 255, 255, 40), width=2)
 
-            draw.text((width//2, 1200), f"PROFIT: {win_data['pnl']} USDT", font=font_medium, fill=(255, 255, 255), anchor="mm")
+            # --- CONTENT LAYOUT ---
+            # Font Loading with Fallbacks
+            def get_font(size):
+                try: return ImageFont.truetype(f"C:/Windows/Fonts/{theme['font']}", size)
+                except: return ImageFont.load_default()
+
+            title_f = get_font(160)
+            symbol_f = get_font(110)
+            cta_f = get_font(70)
+
+            # Draw ROI (The Big Hero Number)
+            roi = win_data.get('roi', 0)
+            draw.text((width//2, 850), f"+{roi}%", font=title_f, fill=theme['accent'], anchor="mm")
             
-            draw.text((width//2, 1600), "GET THE BOT: INDUKTR.COM", font=font_medium, fill=(0, 255, 200), anchor="mm")
+            # Draw Symbol
+            draw.text((width//2, 650), win_data.get('symbol', 'BTC'), font=symbol_f, fill=theme['text'], anchor="mm")
 
-            output_path = f"{self.output_dir}/pnl_card_{win_data['id']}.png"
-            card.save(output_path)
-            logging.info(f"🎨 VIDEO GENERATOR: PnL Card saved to {output_path}")
-            return output_path
+            # Draw PnL
+            draw.text((width//2, 1100), f"${win_data.get('pnl', 0)} NET PROFIT", font=cta_f, fill=theme['text'], anchor="mm")
+
+            # Draw Brand Tag
+            draw.text((width//2, 1350), "A.S.T.R.A. AI SYSTEM", font=get_font(50), fill=theme['accent'], anchor="mm")
+
+            # Save PNG
+            output_png = os.path.join(self.output_dir, f"unique_card_{win_data['id']}.png")
+            card.save(output_png)
+            logging.info(f"✅ VIDEO GEN: Created unique {theme['name']} style card.")
+            return output_png
+
         except Exception as e:
-            logging.error(f"PnL Card Generation Error: {e}")
+            logging.error(f"Style Gen Error: {e}")
+            import traceback
+            logging.error(traceback.format_exc())
             return None
 
 video_generator = VideoGenerator()

@@ -73,6 +73,10 @@ class ReportParser:
                     "score": score,
                     "action": action,
                     "reasoning": reasoning,
+                    "symbol": execution_data.get('target_symbol', 'N/A'),
+                    "tp": execution_data.get('tp_percent', execution_data.get('tp', 0)),
+                    "sl": execution_data.get('sl_percent', execution_data.get('sl', 0)),
+                    "budget": execution_data.get('budget_usdt', execution_data.get('budget', 0)),
                     "details": execution_data
                 })
 

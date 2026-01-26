@@ -1,122 +1,135 @@
 import os
 import sys
 import requests
-import logging
 import webbrowser
+import logging
 import hashlib
 import base64
-from dotenv import load_dotenv
+import secrets
+from urllib.parse import urlencode, urlparse, parse_qs
 
-# Принудительная загрузка .env
-load_dotenv()
-sys.path.append(os.getcwd())
+# Add project root to path so we can import src
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from src.app.config import config
 
-logging.basicConfig(level=logging.INFO)
+# Configuration
+REDIRECT_URI = "https://www.google.com/"
+SCOPES = "video.upload,video.publish,user.info.basic"
 
-CLIENT_KEY = config.TIKTOK_CLIENT_KEY
-CLIENT_SECRET = config.TIKTOK_CLIENT_SECRET
-REDIRECT_URI = "https://www.google.com"
+# TikTok Auth Endpoints
+AUTH_URL = "https://www.tiktok.com/v2/auth/authorize/"
+# Back to Sandbox because Production endpoint may reject Sandbox credentials with 'malformed' error
+TOKEN_URL = "https://open-sandbox.tiktokapis.com/v2/oauth/token/"
 
-# --- ФИКС ДЛЯ ПЕРЕЗАПУСКОВ ---
-# Используем фиксированный verifier, чтобы он не менялся при перезапуске скрипта.
-# Это позволяет вам скопировать ссылку, закрыть скрипт, открыть снова и вставить код.
-FIXED_VERIFIER = "astra_stable_verifier_key_for_manual_auth_process_1234567890"
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def get_challenge(verifier):
-    sha256 = hashlib.sha256(verifier.encode('utf-8')).digest()
-    return base64.urlsafe_b64encode(sha256).decode('utf-8').replace('=', '')
+def generate_pkce():
+    """Generates PKCE code_verifier and code_challenge."""
+    code_verifier = secrets.token_urlsafe(64)
+    code_challenge_hash = hashlib.sha256(code_verifier.encode('utf-8')).digest()
+    code_challenge = base64.urlsafe_b64encode(code_challenge_hash).decode('utf-8').replace('=', '')
+    return code_verifier, code_challenge
+
+def get_sandbox_tokens(auth_code, client_key, client_secret, code_verifier):
+    """Exchanges auth code for tokens."""
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    data = {
+        "client_key": client_key.strip().strip('"').strip("'"),
+        "client_secret": client_secret.strip().strip('"').strip("'"),
+        "code": auth_code.strip(),
+        "grant_type": "authorization_code",
+        "redirect_uri": REDIRECT_URI,
+        "code_verifier": code_verifier
+    }
+    try:
+        response = requests.post(TOKEN_URL, headers=headers, data=data, timeout=10)
+        return response.json()
+    except requests.exceptions.ConnectionError:
+        return {"error": "DNS_ERROR", "message": f"Не удалось найти сервер {TOKEN_URL}. Проверьте интернет или VPN."}
+    except Exception as e:
+        return {"error": str(e)}
 
 def main():
     print("\n" + "="*60)
-    print("🚀 TIKTOK AUTH v3 (RESTART-SAFE)")
+    print("💎 A.S.T.R.A. MANUAL TOKEN GENERATOR (SANDBOX + PKCE)")
     print("="*60)
-    
-    challenge = get_challenge(FIXED_VERIFIER)
-    scope = "user.info.basic,video.upload,video.publish,video.list"
-    
-    auth_url = (
-        f"https://www.tiktok.com/v2/auth/authorize/"
-        f"?client_key={CLIENT_KEY}"
-        f"&scope={scope}"
-        f"&response_type=code"
-        f"&redirect_uri={REDIRECT_URI}"
-        f"&code_challenge={challenge}"
-        f"&code_challenge_method=S256"
-    )
-    
-    print("\n1. Ссылка для входа (откроется в браузере):")
-    print(auth_url)
-    print("\n2. После авторизации вас перекинет на Google.")
-    print("3. Скопируйте ВСЮ ссылку из адресной строки Google.")
-    print("-" * 60)
-    
-    webbrowser.open(auth_url)
-    
-    full_url = input("\n👉 Вставьте ПОЛНУЮ ссылку Google сюда: ").strip()
-    
-    # Умное извлечение кода из любой ссылки
-    code = ""
-    if "code=" in full_url:
-        # Берем кусок между code= и следующим & (или концом строки)
-        code = full_url.split("code=")[1].split("&")[0]
-        # Декодируем %-символы на случай, если браузер их закодировал
-        import urllib.parse
-        code = urllib.parse.unquote(code)
-    else:
-        # Если вдруг вставили "голый" код
-        code = full_url
 
-    print(f"\n🎯 Используем код: {code[:10]}...")
-    print("🔄 Обмениваю на токен...")
+    client_key = config.TIKTOK_CLIENT_KEY.strip().strip('"').strip("'")
+    client_secret = config.TIKTOK_CLIENT_SECRET.strip().strip('"').strip("'")
     
-    url = "https://open.tiktokapis.com/v2/oauth/token/"
-    headers = {"Content-Type": "application/x-www-form-urlencoded"}
-    data = {
-        "client_key": CLIENT_KEY,
-        "client_secret": CLIENT_SECRET,
-        "code": code,
-        "grant_type": "authorization_code",
+    if not client_key or not client_secret or "your_" in client_key:
+        print("❌ ERROR: Missing TIKTOK_CLIENT_KEY or TIKTOK_CLIENT_SECRET in .env!")
+        return
+
+    # 1. Generate PKCE
+    code_verifier, code_challenge = generate_pkce()
+
+    print(f"\n🔑 ВАШ VERIFIER (сохраните его!): {code_verifier}")
+
+    # 2. Prepare Auth URL
+    params = {
+        "client_key": client_key,
+        "scope": SCOPES,
+        "response_type": "code",
         "redirect_uri": REDIRECT_URI,
-        "code_verifier": FIXED_VERIFIER  # Отправляем тот же verifier!
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256"
     }
+    full_auth_url = f"{AUTH_URL}?{urlencode(params)}"
+    
+    print(f"\n1️⃣  Добавьте в TikTok Console: {REDIRECT_URI}")
+    print(f"\n2️⃣  Откройте эту ссылку и авторизуйтесь:")
+    print(f"🔗 {full_auth_url}")
+    
+    print("\n" + "-"*60)
+    print("ИНСТРУКЦИЯ:")
+    print("1. Разрешите доступ в браузере.")
+    print("2. Вас перекинет на Google.")
+    print("3. СКОПИРУЙТЕ всю адресную строку (URL) из браузера.")
+    print("-"*60)
+    
+    callback_url = input("\n👉 Вставьте скопированный URL сюда: ").strip()
     
     try:
-        response = requests.post(url, headers=headers, data=data)
-        res_data = response.json()
+        # Extract code from URL
+        parsed_url = urlparse(callback_url)
+        query = parse_qs(parsed_url.query)
+        auth_code = query.get('code', [None])[0]
         
-        if response.status_code == 200 and 'access_token' in res_data:
-            token = res_data['access_token']
-            print("\n" + "✅" * 10)
-            print("УСПЕХ! Токен получен.")
-            
-            # Сохранение
-            env_path = os.path.join(os.getcwd(), '.env')
-            with open(env_path, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-            
-            new_lines = []
-            token_saved = False
-            for line in lines:
-                if line.startswith('TIKTOK_ACCESS_TOKEN='):
-                    new_lines.append(f'TIKTOK_ACCESS_TOKEN={token}\n')
-                    token_saved = True
-                else:
-                    new_lines.append(line)
-            
-            if not token_saved:
-                new_lines.append(f'\nTIKTOK_ACCESS_TOKEN={token}\n')
-                
-            with open(env_path, 'w', encoding='utf-8') as f:
-                f.writelines(new_lines)
-                
-            print(f"💾 Токен сохранен в .env")
-            print("🎬 Можно запускать тест видео!")
+        if not auth_code:
+            # Maybe the user pasted just the code?
+            if len(callback_url) > 20 and " " not in callback_url:
+                auth_code = callback_url
+            else:
+                print("❌ Ошибка: Не удалось найти параметр 'code' в ссылке.")
+                return
+
+        print(f"✅ Код получен: {auth_code[:10]}...")
+        
+        # 3. Exchange for tokens
+        print("\n📦 Запрашиваю Access Token (Sandbox Mode)...")
+        token_data = get_sandbox_tokens(auth_code, client_key, client_secret, code_verifier)
+        
+        if isinstance(token_data, dict) and "data" in token_data and "access_token" in token_data["data"]:
+            creds = token_data["data"]
+            print("\n" + "🌟" * 20)
+            print("   ПОЗДРАВЛЯЮ! ТОКЕН ПОЛУЧЕН   ")
+            print("🌟" * 20)
+            print(f"\nTIKTOK_ACCESS_TOKEN=\"{creds['access_token']}\"")
+            print(f"\n✅ Скопируйте это в ваш .env файл.")
+            print("="*60 + "\n")
         else:
-            print(f"\n❌ Ошибка TikTok API: {res_data}")
-            
+            if isinstance(token_data, dict) and token_data.get("error") == "DNS_ERROR":
+                print(f"\n⚠️ СЕТЕВАЯ ОШИБКА: {token_data.get('message')}")
+            else:
+                error_val = token_data.get('error') if isinstance(token_data, dict) else str(token_data)
+                error_desc = token_data.get('error_description') if isinstance(token_data, dict) else ""
+                print(f"\n❌ ОШИБКА TikTok: {error_val}")
+                if error_desc: print(f"📝 Описание: {error_desc}")
+                print(f"🔍 Полный ответ сервера: {token_data}")
+
     except Exception as e:
-        print(f"\n❌ Ошибка сети: {e}")
+        print(f"❌ Произошла ошибка: {e}")
 
 if __name__ == "__main__":
     main()
