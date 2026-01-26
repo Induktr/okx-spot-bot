@@ -30,6 +30,7 @@ class Config(BaseSettings):
     TRADING_START_HOUR: int = 0 # 00:00
     TRADING_END_HOUR: int = 24 # 24:00 (Full Day)
     CYCLE_INTERVAL_MINUTES: int = 60 # Default to 1 hour
+    HEADLESS_MODE: bool = True # For server deployments (TikTok/Browser)
 
     # AI Provider Selection: 'gemini', 'openai', 'deepseek', 'anthropic'
     AI_PROVIDER: str = "gemini"
@@ -111,6 +112,7 @@ class Config(BaseSettings):
                 self.BOT_ACTIVE = data.get("bot_active", True)
                 self.FORCE_CYCLE = data.get("force_cycle", False)
                 self.CYCLE_INTERVAL_MINUTES = data.get("cycle_interval", 60)
+                self.HEADLESS_MODE = data.get("headless_mode", True)
                 self.TRADING_DAYS = data.get("trading_days", [0, 1, 2, 3, 4])
                 self.TRADING_START_HOUR = data.get("trading_start_hour", 0)
                 self.TRADING_END_HOUR = data.get("trading_end_hour", 24)
@@ -150,6 +152,7 @@ class Config(BaseSettings):
                 "ai_provider": self.AI_PROVIDER,
                 "bot_active": self.BOT_ACTIVE,
                 "cycle_interval": self.CYCLE_INTERVAL_MINUTES,
+                "headless_mode": self.HEADLESS_MODE,
                 "trading_days": self.TRADING_DAYS,
                 "trading_start_hour": self.TRADING_START_HOUR,
                 "trading_end_hour": self.TRADING_END_HOUR,

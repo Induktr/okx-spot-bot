@@ -120,11 +120,17 @@ class SocialPublisher:
             
             cookie_path = os.path.join(os.getcwd(), "data", "tiktok_cookies.txt")
             if not os.path.exists(cookie_path):
-                logging.warning("🎬 TIKTOK: No cookies found in 'data/tiktok_cookies.txt'. Skipping stealth upload.")
-                return "SKIPPED_NO_COOKIES"
+                # Try to find the json state which is more important
+                session_state_path = cookie_path.replace('.txt', '.json')
+                if not os.path.exists(session_state_path):
+                    logging.warning("🎬 TIKTOK: No cookies or session state found. Skipping stealth upload.")
+                    return "SKIPPED_NO_COOKIES"
             
-            logging.info(f"🎬 TIKTOK: Starting Stealth Playwright upload using {cookie_path}...")
-            result = await tiktok_stealth_upload(video_path, text, cookie_path)
+            # Use headless mode for servers (Linux)
+            is_headless = getattr(config, 'HEADLESS_MODE', True) 
+            logging.info(f"🎬 TIKTOK: Starting Stealth Playwright upload (Headless={is_headless})...")
+            
+            result = await tiktok_stealth_upload(video_path, text, cookie_path, headless=is_headless)
             
             if result == "SUCCESS":
                 logging.info("✅ TIKTOK: Stealth Post Successful via Playwright!")
