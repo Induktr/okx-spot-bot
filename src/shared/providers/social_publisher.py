@@ -24,19 +24,38 @@ class SocialPublisher:
         self.yt_refresh_token = config.YOUTUBE_REFRESH_TOKEN
 
     async def publish_everywhere(self, video_path, title, description):
+        import asyncio
         results = {}
         
-        # Telegram (Video + Text)
-        results['telegram'] = await self._post_to_telegram(video_path, description)
+        async def safe_post(platform, coro):
+            try:
+                # 2-minute timeout per platform to prevent total hang
+                return await asyncio.wait_for(coro, timeout=120)
+            except asyncio.TimeoutError:
+                logging.error(f"⌛ {platform.upper()} Upload timed out (120s limit).")
+                return "TIMEOUT"
+            except Exception as e:
+                logging.error(f"❌ {platform.upper()} Error during parallel publish: {e}")
+                return f"ERROR: {e}"
 
-        # TikTok (Try official first, then cookies)
-        results['tiktok'] = await self._post_to_tiktok(video_path, description)
+        # Setup tasks for parallel execution
+        tasks = {
+            'telegram': safe_post('telegram', self._post_to_telegram(video_path, description)),
+            'tiktok': safe_post('tiktok', self._post_to_tiktok(video_path, description))
+        }
         
         if self.yt_refresh_token:
-            results['youtube'] = await self._post_to_youtube(video_path, title, description)
+            tasks['youtube'] = safe_post('youtube', self._post_to_youtube(video_path, title, description))
             
         if config.INSTAGRAM_USERNAME:
-            results['instagram'] = await self._post_to_instagram(video_path, description)
+            tasks['instagram'] = safe_post('instagram', self._post_to_instagram(video_path, description))
+
+        # Run all publishing tasks in parallel
+        platforms = list(tasks.keys())
+        outputs = await asyncio.gather(*tasks.values())
+        
+        for i, platform in enumerate(platforms):
+            results[platform] = outputs[i]
 
         return results
 

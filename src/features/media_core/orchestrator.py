@@ -75,29 +75,51 @@ class MediaCoreOrchestrator:
             
         bg_video_path = pexels_provider.get_random_background(query=search_query)
         
-        # Generate Dynamic Overlay (Style Match)
-        overlay_path = video_generator.generate_marketing_media(win, style_directive=style)
+        # --- SPLIT SCREEN (SATURATION) LOGIC ---
+        # Forcevariety if AI is too conservative
+        if format_type == 'DEFAULT' and random.random() > 0.5:
+            format_type = random.choice(['SPLIT_SCREEN', 'POV_PHONE'])
+            
+        secondary_video_path = None
+        if format_type == "SPLIT_SCREEN":
+            logging.info("📢 MEDIA CORE: Fetching secondary satisfying content for SPLIT_SCREEN saturation...")
+            satisfying_queries = ["satisfying sand", "hydraulic press", "relaxation aesthetic", "space nebula vertical", "jellyfish slow motion"]
+            secondary_video_path = pexels_provider.get_random_background(query=random.choice(satisfying_queries))
         
-        # 4. ASSEMBLY
-        final_video = video_editor.assemble_final_video(
-             bg_video_path, audio_path, overlay_path, win['id'], 
-             style=style, bg_music_path=bg_music_path, 
-             format_type=format_type
+        # Generate Dynamic Overlay (Style Match)
+        overlay_path = video_generator.generate_marketing_media(
+            win, 
+            style_directive=style,
+            heading=director_cut.get('card_heading'),
+            status=director_cut.get('card_status')
         )
         
+        # 4. ASSEMBLY
+        try:
+            final_video = video_editor.assemble_final_video(
+                 bg_video_path, audio_path, overlay_path, win['id'], 
+                 style=style, bg_music_path=bg_music_path, 
+                 format_type=format_type,
+                 secondary_video_path=secondary_video_path,
+                 script_text=script
+            )
+        except Exception as assembly_err:
+            logging.error(f"❌ ASSEMBLY ERROR for {win['symbol']}: {assembly_err}")
+            return
+        
         if final_video:
-            # --- VIRAL ENGINE ENHANCEMENTS ---
-            from src.shared.providers.news_aggregator import news_aggregator
-            import random
-            
-            hook = random.choice(news_aggregator.get_viral_hooks())
-            title = f"{hook} | A.S.T.R.A. Profit: {win['roi']}%"
-            # High-conversion description
-            hashtag_cloud = "#crypto #trading #ai #bitcoin #investing #foryou #finance #algorithm #makemoney #passiveincome"
-            viral_description = f"{hook}\n\n{script}\n\n{hashtag_cloud}"
-            
-            logging.info(f"📢 PUBLISHING: Viral video with hook: {hook}")
-            await social_publisher.publish_everywhere(final_video, title, viral_description)
+            try:
+                # --- AI-DRIVEN VIRAL METADATA ---
+                viral_title = director_cut.get('viral_title', f"A.S.T.R.A. Profit: {win['roi']}%")
+                hashtags = director_cut.get('hashtags', "#crypto #ai #trading")
+                
+                # Combine into high-conversion description
+                viral_description = f"{viral_title}\n\n{script}\n\n{hashtags}"
+                
+                logging.info(f"📢 PUBLISHING: Viral video with AI Title: {viral_title}")
+                await social_publisher.publish_everywhere(final_video, viral_title, viral_description)
+            except Exception as publish_err:
+                logging.error(f"❌ PUBLISHING ERROR for {win['symbol']}: {publish_err}")
 
     async def _handle_text_marketing(self, win):
         """Processes AI text + Image report for Telegram."""

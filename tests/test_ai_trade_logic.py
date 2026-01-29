@@ -9,7 +9,7 @@ class TestAIPositionManagement(unittest.TestCase):
     def setUp(self):
         # Reset common config
         config.BOT_ACTIVE = True
-        config.SYMBOLS = ["BTC/USDT:USDT"]
+        config.SYMBOLS = ["ETH/USDT:USDT"]
         config.ACTIVE_EXCHANGES = ["okx"]
         
         # Mocks for news and tech
@@ -39,13 +39,13 @@ class TestAIPositionManagement(unittest.TestCase):
     def test_ai_decision_close(self):
         """Scenario: AI decides to CLOSE an existing LONG position."""
         # 1. Setup existing position
-        test_pos = {'symbol': 'BTC/USDT:USDT', 'side': 'long', 'contracts': 1.0, 'info': {'instId': 'BTC-USDT-SWAP'}}
+        test_pos = {'symbol': 'ETH/USDT:USDT', 'side': 'long', 'contracts': 1.0, 'info': {'instId': 'ETH-USDT-SWAP'}}
         self.mock_trader.get_positions.return_value = [test_pos]
         self.mock_trader.get_balance.return_value = 1000.0
         
         # 2. Setup AI decision
         self.mock_ai.analyze_news.return_value = {
-            'target_symbol': 'BTC/USDT:USDT',
+            'target_symbol': 'ETH/USDT:USDT',
             'action': 'CLOSE',
             'sentiment_score': 9,
             'reasoning': 'Profit taking.'
@@ -61,14 +61,14 @@ class TestAIPositionManagement(unittest.TestCase):
     def test_ai_decision_flip_long_to_short(self):
         """Scenario: AI decides to SELL (SHORT) while we are currently LONG."""
         # 1. Setup existing LONG
-        test_pos = {'symbol': 'BTC/USDT:USDT', 'side': 'long', 'contracts': 1.0, 'info': {'instId': 'BTC-USDT-SWAP'}}
+        test_pos = {'symbol': 'ETH/USDT:USDT', 'side': 'long', 'contracts': 1.0, 'info': {'instId': 'ETH-USDT-SWAP'}}
         # Initial call returns the long, subsequent calls after close should return empty
         self.mock_trader.get_positions.side_effect = [[test_pos], [test_pos], []] # 1st for cycle, 2nd for check, 3rd for settlement check
         self.mock_trader.close_position.return_value = "SUCCESS: Position Closed"
         
         # 2. Setup AI decision
         self.mock_ai.analyze_news.return_value = {
-            'target_symbol': 'BTC/USDT:USDT',
+            'target_symbol': 'ETH/USDT:USDT',
             'action': 'SELL',
             'sentiment_score': 9,
             'reasoning': 'Bearish reversal.',

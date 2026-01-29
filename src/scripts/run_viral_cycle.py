@@ -2,6 +2,7 @@ import asyncio
 import logging
 import sys
 import os
+import time
 
 # Добавляем путь к проекту
 sys.path.append(os.getcwd())
@@ -16,17 +17,22 @@ async def force_run_viral_cycle():
     print("=== A.S.T.R.A. VIRAL MARKETING ENGINE: MANUAL START ===")
     print("="*60)
 
-    # 1. Эмулируем "Победу" (Win Data)
+    import random
+    import datetime
+    assets = ["SOL/USDT", "AVAX/USDT", "ETH/USDT", "BTC/USDT", "LINK/USDT", "NEAR/USDT"]
+    selected_asset = random.choice(assets)
+    selected_roi = round(random.uniform(55.0, 185.0), 1)
+    
     fake_win = {
-        "id": "test_win_001",
-        "symbol": "BTC/USDT",
-        "roi": 25.5,
-        "pnl": 255.0,
-        "close_price": 105.2,
-        "timestamp": "2024-01-20 12:00:00"
+        "id": f"test_{int(time.time())}",
+        "symbol": selected_asset,
+        "roi": selected_roi,
+        "pnl": round(selected_roi * 10, 2),
+        "close_price": 100,
+        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
     
-    print(f"INPUT: Simulating High-ROI Win on {fake_win['symbol']} (+{fake_win['roi']}%)")
+    print(f"INPUT: Simulating Unique Win on {fake_win['symbol']} (+{fake_win['roi']}%)")
 
     # 2. Запускаем Орхестратор вручную
     orchestrator = MediaCoreOrchestrator()

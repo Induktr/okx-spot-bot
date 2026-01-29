@@ -30,7 +30,7 @@ class Config(BaseSettings):
     TRADING_START_HOUR: int = 0 # 00:00
     TRADING_END_HOUR: int = 24 # 24:00 (Full Day)
     CYCLE_INTERVAL_MINUTES: int = 60 # Default to 1 hour
-    HEADLESS_MODE: bool = True # For server deployments (TikTok/Browser)
+    HEADLESS_MODE: bool = False # For server deployments (TikTok/Browser)
 
     # AI Provider Selection: 'gemini', 'openai', 'deepseek', 'anthropic'
     AI_PROVIDER: str = "gemini"
@@ -137,6 +137,7 @@ class Config(BaseSettings):
                 # Inworld AI
                 self.INWORLD_API_KEY = data.get("inworld_api_key", self.INWORLD_API_KEY)
                 self.INWORLD_VOICE_ID = data.get("inworld_voice_id", self.INWORLD_VOICE_ID)
+                self.TIKTOK_PROXY = data.get("tiktok_proxy", self.TIKTOK_PROXY)
         except Exception:
             self.ACTIVE_EXCHANGES = ["okx"]
             self.SANDBOX_MODES = {"okx": True, "binance": False, "bybit": False}
@@ -171,7 +172,8 @@ class Config(BaseSettings):
                 "max_leverage": self.MAX_LEVERAGE,
                 "tg_signals_active": self.TG_SIGNALS_ACTIVE,
                 "inworld_api_key": self.INWORLD_API_KEY,
-                "inworld_voice_id": self.INWORLD_VOICE_ID
+                "inworld_voice_id": self.INWORLD_VOICE_ID,
+                "tiktok_proxy": self.TIKTOK_PROXY
             }, f, indent=4)
     
     # Trading Settings
@@ -218,6 +220,7 @@ class Config(BaseSettings):
     INSTAGRAM_USERNAME: str = Field("", env="INSTAGRAM_USERNAME")
     INSTAGRAM_PASSWORD: str = Field("", env="INSTAGRAM_PASSWORD")
     META_ACCESS_TOKEN: str = Field("", env="META_ACCESS_TOKEN")
+    TIKTOK_PROXY: str = Field("", env="TIKTOK_PROXY")
 
     def check_license(self):
         """

@@ -316,7 +316,9 @@ def astra_cycle():
                     ai_budget = float(analysis.get('budget_usdt', 0))
                     
                     if ai_budget <= 0:
-                        logging.warning(f"[{eid.upper()}] AI requested a trade but proposed $0 budget. Skipping.")
+                        msg = f"{eid.upper()}: Skipped (Budget is 0. Check AI parameters)."
+                        logging.warning(msg)
+                        execution_results.append(msg)
                         continue
                         
                     # Handle FLIP (Reverse position) or Simple Execution

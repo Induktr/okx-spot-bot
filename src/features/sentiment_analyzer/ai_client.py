@@ -45,9 +45,14 @@ class AIAgent:
             "   - 'target_symbol': (string, e.g. 'SOL/USDT')\n"
             "   - 'sentiment_score': (0-10 integer)\n"
             "   - 'reasoning': (string, max 30 words, concise and analytical)\n"
-            "   - 'tp_percent': (float, recommended target profit e.g. 5.5)\n"
-            "   - 'sl_percent': (float, recommended stop loss e.g. 2.0)\n"
+            "   - 'tp_pct': (float, recommended target profit e.g. 0.055 for 5.5%)\n"
+            "   - 'sl_pct': (float, recommended stop loss e.g. 0.02 for 2.0%)\n"
+            "   - 'leverage': (integer, 1-10, based on risk factor)\n"
+            "   - 'budget_usdt': (float, proposed allocation, e.g. 500.0)\n"
             "   - 'risk_factor': ['LOW', 'MODERATE', 'HIGH']\n\n"
+            "Budgeting Strategy: For BUY/SELL, calculate 'budget_usdt' based on the provided total balance. \n"
+            "   - Use a 'Kelly Criterion' inspired approach: allocate 10% (Conservative) to 25% (Aggressive) of total balance.\n"
+            "   - Higher 'sentiment_score' and 'LOW' risk factor justify larger allocations.\n"
             "Style: Analytical, professional, decisive. Output valid JSON.\n"
         )
         self._init_client()

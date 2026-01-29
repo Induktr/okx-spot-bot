@@ -13,7 +13,6 @@ pyTelegramBotAPI
 edge-tts
 moviepy
 Pillow
-requests
 aiohttp
 instagrapi
 pycryptodomex
@@ -21,3 +20,6 @@ openai
 tiktok-uploader
 playwright
 yt_dlp
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
