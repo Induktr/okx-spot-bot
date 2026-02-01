@@ -97,13 +97,13 @@ class Config(BaseSettings):
         
         # 1. Try to load Admin Keys (Not for Client Distribution)
         try:
-            with open("data/admin_keys.json", "r") as f:
+            with open("src/shared/data/admin_keys.json", "r") as f:
                 self.GEMINI_KEYS = json.load(f)
         except FileNotFoundError:
             self.GEMINI_KEYS = [] # Client mode
 
         try:
-            with open("data/settings.json", "r") as f:
+            with open("src/shared/data/settings.json", "r") as f:
                 data = json.load(f)
                 self.ACTIVE_EXCHANGES = data.get("active_exchanges", ["okx"])
                 self.SANDBOX_MODES = data.get("sandbox_modes", {"okx": True, "binance": False, "bybit": False})
@@ -143,9 +143,9 @@ class Config(BaseSettings):
             self.SANDBOX_MODES = {"okx": True, "binance": False, "bybit": False}
 
     def save_settings(self):
-        """Saves current settings to data/settings.json."""
+        """Saves current settings to src/shared/data/settings.json."""
         import json
-        with open("data/settings.json", "w") as f:
+        with open("src/shared/data/settings.json", "w") as f:
             json.dump({
                 "active_exchanges": self.ACTIVE_EXCHANGES,
                 "sandbox_modes": self.SANDBOX_MODES,
@@ -181,10 +181,10 @@ class Config(BaseSettings):
     HOT_SYMBOLS: list[str] = [] # Auto-populated by Screener
     
     def load_symbols(self):
-        """Loads symbols from local data/symbols.json."""
+        """Loads symbols from local src/shared/data/symbols.json."""
         import json
         try:
-            with open("data/symbols.json", "r") as f:
+            with open("src/shared/data/symbols.json", "r") as f:
                 self.SYMBOLS = json.load(f)
         except Exception:
             self.SYMBOLS = ["BTC/USDT:USDT", "ETH/USDT:USDT"] # Fallback
@@ -192,7 +192,7 @@ class Config(BaseSettings):
     def save_symbols(self):
         """Persists current symbols to JSON."""
         import json
-        with open("data/symbols.json", "w") as f:
+        with open("src/shared/data/symbols.json", "w") as f:
             json.dump(self.SYMBOLS, f, indent=4)
 
     TRADE_AMOUNT: float = 20.0
@@ -221,6 +221,7 @@ class Config(BaseSettings):
     INSTAGRAM_PASSWORD: str = Field("", env="INSTAGRAM_PASSWORD")
     META_ACCESS_TOKEN: str = Field("", env="META_ACCESS_TOKEN")
     TIKTOK_PROXY: str = Field("", env="TIKTOK_PROXY")
+    ASTRA_LICENSE_KEY: str = Field("DEV-MODE-KEYS", env="ASTRA_LICENSE_KEY")
 
     def check_license(self):
         """

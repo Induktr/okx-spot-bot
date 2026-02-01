@@ -10,7 +10,7 @@ class VideoGenerator:
     Creates unique, high-end PnL cards with varying structures, semantics, and aesthetics.
     """
     def __init__(self):
-        self.output_dir = "src/data/marketing_outputs"
+        self.output_dir = "src/shared/data/marketing_outputs"
         os.makedirs(self.output_dir, exist_ok=True)
 
     def generate_marketing_media(self, win_data, style_directive="DEFAULT", heading=None, status=None):
@@ -67,52 +67,56 @@ class VideoGenerator:
             
             # --- COMPONENT: RADICAL LAYOUTS ---
             if target_mode == "CYBER":
-                # Layout: Scanning Interface
-                draw.rectangle([100, 700, 980, 1200], fill=theme['bg'], outline=theme['accent'], width=5)
-                scan_y = random.randint(700, 1200)
-                draw.line([(100, scan_y), (980, scan_y)], fill=theme['accent'], width=2)
+                # Layout: Scanning Interface (Institutional background)
+                draw.rectangle([40, 600, 1040, 1300], fill=(0,0,0,180), outline=theme['accent'], width=8)
+                scan_y = random.randint(600, 1300)
+                draw.line([(40, scan_y), (1040, scan_y)], fill=theme['accent'], width=3)
                 # content
-                draw.text((width//2, 800), heading, font=get_f(40), fill=theme['accent'], anchor="mm")
-                draw.text((width//2, 1000), roi, font=get_f(220), fill=theme['text'], anchor="mm")
-                draw.text((width//2, 1150), f"TARGET: {symbol}", font=get_f(60), fill=theme['accent'], anchor="mm")
+                draw.text((width//2, 680), heading, font=get_f(50), fill=theme['accent'], anchor="mm")
+                # ROI is now slightly responsive to avoid clipping
+                font_size = 240 if len(roi) < 6 else 190
+                draw.text((width//2, 950), roi, font=get_f(font_size), fill=theme['text'], anchor="mm")
+                draw.text((width//2, 1200), f"TARGET: {symbol}", font=get_f(75), fill=theme['accent'], anchor="mm")
                 # Detailing
-                draw.text((120, 720), status_text, font=get_f(30), fill=theme['accent'])
-                draw.text((880, 1160), "SECURE", font=get_f(30), fill=theme['accent'])
+                draw.text((60, 620), status_text, font=get_f(40), fill=theme['accent'])
+                draw.text((900, 1250), "SECURE", font=get_f(40), fill=theme['accent'])
 
             elif target_mode == "LUXURY":
-                draw.rectangle([0, 0, width, height], fill=(0,0,0,140))
-                plate = [200, 750, 880, 1150]
-                draw.rounded_rectangle(plate, radius=30, fill=theme['bg'], outline=theme['accent'], width=10)
-                draw.text((width//2, 800), heading, font=get_f(40), fill=theme['accent'], anchor="mm")
-                draw.text((width//2, 900), symbol, font=get_f(90), fill=theme['text'], anchor="mm")
-                draw.text((width//2, 1050), roi, font=get_f(180), fill=theme['accent'], anchor="mm")
-                draw.text((width//2, 1200), status_text, font=get_f(35), fill=theme['text'], anchor="mm")
+                plate = [50, 600, 1030, 1350]
+                draw.rounded_rectangle(plate, radius=50, fill=(0,0,0,180), outline=theme['accent'], width=12)
+                draw.text((width//2, 680), heading, font=get_f(55), fill=theme['accent'], anchor="mm")
+                draw.text((width//2, 820), symbol, font=get_f(110), fill=theme['text'], anchor="mm")
+                font_size = 220 if len(roi) < 6 else 170
+                draw.text((width//2, 1080), roi, font=get_f(font_size), fill=theme['accent'], anchor="mm")
+                draw.text((width//2, 1280), status_text, font=get_f(45), fill=theme['text'], anchor="mm")
 
             elif target_mode == "BRUTALIST":
-                draw.rectangle([0, 600, width, 1300], fill=theme['bg'])
-                draw.text((50, 650), heading, font=get_f(60), fill=theme['accent'])
-                draw.text((50, 800), symbol, font=get_f(200), fill=theme['accent'])
-                draw.text((50, 1100), roi, font=get_f(300), fill=theme['accent'])
-                draw.text((width-50, 1250), status_text, font=get_f(50), fill=theme['accent'], anchor="rm")
+                draw.rectangle([40, 600, 1040, 1450], fill=(255, 240, 0, 230), outline=(0,0,0), width=15)
+                draw.text((100, 650), heading, font=get_f(80), fill=(0,0,0))
+                draw.text((100, 820), symbol, font=get_f(220), fill=(0,0,0))
+                font_size = 300 if len(roi) < 6 else 220
+                draw.text((width//2, 1150), roi, font=get_f(font_size), fill=(0,0,0), anchor="mm")
+                draw.text((width-100, 1380), status_text, font=get_f(65), fill=(0,0,0), anchor="rm")
 
             elif target_mode == "MINIMAL":
-                draw.rectangle([0, 400, 400, 1500], fill=theme['accent'])
-                draw.text((450, 500), heading, font=get_f(60), fill=theme['accent'])
-                draw.text((450, 800), symbol, font=get_f(120), fill=(255,255,255))
-                draw.text((450, 1000), roi, font=get_f(280), fill=theme['accent'])
-                draw.text((450, 1300), status_text, font=get_f(50), fill=(100,100,100))
+                draw.rectangle([80, 500, 1000, 1450], fill=(255,255,255,230), outline=theme['accent'], width=10)
+                draw.text((width//2, 600), heading, font=get_f(80), fill=theme['accent'], anchor="mm")
+                draw.text((width//2, 850), symbol, font=get_f(150), fill=(0,0,0), anchor="mm")
+                font_size = 300 if len(roi) < 6 else 220
+                draw.text((width//2, 1150), roi, font=get_f(font_size), fill=theme['accent'], anchor="mm")
+                draw.text((width//2, 1380), status_text, font=get_f(65), fill=(100,100,100), anchor="mm")
 
             elif target_mode == "DATA_DUMP":
                 # Layout: Matrix Style
-                for i in range(12):
-                    y = 400 + (i * 100)
-                    txt = f"[{status_text}] " + "".join([random.choice("01") for _ in range(15)])
-                    draw.text((50, y), txt, font=get_f(30), fill=(theme['accent'][0], theme['accent'][1], theme['accent'][2], 80))
+                for i in range(15):
+                    y = 350 + (i * 90)
+                    txt = f"[{status_text}] " + "".join([random.choice("01") for _ in range(20)])
+                    draw.text((50, y), txt, font=get_f(35), fill=(theme['accent'][0], theme['accent'][1], theme['accent'][2], 60))
                 
-                draw.rectangle([100, 850, 980, 1150], fill=(0,0,0,255), outline=theme['accent'], width=10)
-                draw.text((width//2, 930), heading, font=get_f(50), fill=theme['accent'], anchor="mm")
-                draw.text((width//2, 1050), roi, font=get_f(180), fill=theme['accent'], anchor="mm")
-
+                draw.rectangle([60, 800, 1020, 1220], fill=(0,0,0,230), outline=theme['accent'], width=12)
+                draw.text((width//2, 880), heading, font=get_f(65), fill=theme['accent'], anchor="mm")
+                font_size = 200 if len(roi) < 6 else 150
+                draw.text((width//2, 1080), roi, font=get_f(font_size), fill=theme['accent'], anchor="mm")
             # --- NOISE & GLITCH OVERLAY ---
             for _ in range(3000):
                 x, y = random.randint(0, width-1), random.randint(0, height-1)

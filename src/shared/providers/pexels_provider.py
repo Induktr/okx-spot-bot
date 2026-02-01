@@ -11,7 +11,7 @@ class PexelsProvider:
     def __init__(self):
         self.api_key = config.PEXELS_API_KEY
         self.base_url = "https://api.pexels.com/videos/search"
-        self.output_dir = "src/data/media_assets"
+        self.output_dir = "src/shared/data/media_assets"
         os.makedirs(self.output_dir, exist_ok=True)
 
     def get_random_background(self, query="trading"):

@@ -1,12 +1,14 @@
 import logging
 import asyncio
+import os
 from src.features.media_core.profit_scout import profit_scout
 from src.features.media_core.script_writer import script_writer
 from src.shared.providers.audio_provider import audio_provider
-from src.shared.providers.pexels_provider import pexels_provider
+from src.shared.providers.audio_provider import audio_provider
 from src.shared.providers.video_generator import video_generator
 from src.shared.providers.video_editor import video_editor
 from src.shared.providers.social_publisher import social_publisher
+from src.shared.providers.chart_provider import chart_provider
 
 class MediaCoreOrchestrator:
     """
@@ -73,18 +75,30 @@ class MediaCoreOrchestrator:
             safe_hashtags = ["skyscraper night", "modern office view", "bitcoin visualization", "luxury car driving night", "cinematic technology"]
             search_query = random.choice(safe_hashtags)
             
-        bg_video_path = pexels_provider.get_random_background(query=search_query)
+        # --- REAL-TIME DATA CAPTURE (PROOF OF WORK) ---
+        # We record long enough to cover the entire voiceover
+        # Using a safe 45s default ensures we have more than enough footage for even long scripts
+        chart_clip = await chart_provider.capture_chart_clip(
+            win['symbol'], 
+            duration=45,
+            visual_analysis=win.get('visual_analysis')
+        )
         
-        # --- SPLIT SCREEN (SATURATION) LOGIC ---
-        # Forcevariety if AI is too conservative
-        if format_type == 'DEFAULT' and random.random() > 0.5:
-            format_type = random.choice(['SPLIT_SCREEN', 'POV_PHONE'])
-            
+        # Logic: If we have a chart clip, we ALWAYS use it as primary centered content.
+        if chart_clip:
+            bg_video_path = chart_clip
+            logging.info("📈 MEDIA CORE: Using real-time TradingView capture as primary centered content.")
+        # --- CONTENT STRATEGY: PURE PROOF-OF-WORK ---
+        # We disable split-screen and secondary filler content (Pexels) entirely.
+        # The chart is now the absolute and only focus.
+        format_type = "CENTERED_CHART"
         secondary_video_path = None
-        if format_type == "SPLIT_SCREEN":
-            logging.info("📢 MEDIA CORE: Fetching secondary satisfying content for SPLIT_SCREEN saturation...")
-            satisfying_queries = ["satisfying sand", "hydraulic press", "relaxation aesthetic", "space nebula vertical", "jellyfish slow motion"]
-            secondary_video_path = pexels_provider.get_random_background(query=random.choice(satisfying_queries))
+        bg_video_path = chart_clip
+        
+        if not bg_video_path:
+            logging.warning("⚠️ No chart clip captured, using premium fallback.")
+            # Fallback to a static high-end AI background if chart fails
+            bg_video_path = "src/shared/data/media_assets/ai_premium_bg.png"
         
         # Generate Dynamic Overlay (Style Match)
         overlay_path = video_generator.generate_marketing_media(
@@ -94,14 +108,35 @@ class MediaCoreOrchestrator:
             status=director_cut.get('card_status')
         )
         
+        # --- ENVIRONMENT BACKGROUND GENERATION (AI FRESHNESS) ---
+        from src.shared.providers.ai_image_provider import ai_image_provider
+        env_bg_path = ai_image_provider.generate_background(theme_query=search_query)
+        
+        if not env_bg_path:
+            logging.warning("⚠️ AI Image Gen failed, falling back to local library.")
+            ai_libs_dir = "src/shared/data/media_assets/ai_bgs"
+            if os.path.exists(ai_libs_dir):
+                import random as rnd
+                bgs = [os.path.join(ai_libs_dir, f) for f in os.listdir(ai_libs_dir) if f.endswith('.png')]
+                env_bg_path = rnd.choice(bgs) if bgs else "src/shared/data/media_assets/ai_premium_bg.png"
+            else:
+                env_bg_path = "src/shared/data/media_assets/ai_premium_bg.png"
+            
+        # Pexels is disabled. Fallback is handled by the AI libs dir logic above.
+
         # 4. ASSEMBLY
         try:
             final_video = video_editor.assemble_final_video(
-                 bg_video_path, audio_path, overlay_path, win['id'], 
-                 style=style, bg_music_path=bg_music_path, 
+                 primary_content_path=bg_video_path, 
+                 audio_path=audio_path, 
+                 overlay_path=overlay_path, 
+                 win_id=win['id'], 
+                 style=style, 
+                 bg_music_path=bg_music_path, 
                  format_type=format_type,
                  secondary_video_path=secondary_video_path,
-                 script_text=script
+                 script_text=script,
+                 env_bg_path=env_bg_path
             )
         except Exception as assembly_err:
             logging.error(f"❌ ASSEMBLY ERROR for {win['symbol']}: {assembly_err}")
@@ -111,10 +146,12 @@ class MediaCoreOrchestrator:
             try:
                 # --- AI-DRIVEN VIRAL METADATA ---
                 viral_title = director_cut.get('viral_title', f"A.S.T.R.A. Profit: {win['roi']}%")
+                ai_desc = director_cut.get('video_description', '')
                 hashtags = director_cut.get('hashtags', "#crypto #ai #trading")
                 
-                # Combine into high-conversion description
-                viral_description = f"{viral_title}\n\n{script}\n\n{hashtags}"
+                # Use dedicated AI description if available, else fallback to script-based
+                base_desc = ai_desc if ai_desc else script
+                viral_description = f"{viral_title}\n\n{base_desc}\n\n{hashtags}"
                 
                 logging.info(f"📢 PUBLISHING: Viral video with AI Title: {viral_title}")
                 await social_publisher.publish_everywhere(final_video, viral_title, viral_description)

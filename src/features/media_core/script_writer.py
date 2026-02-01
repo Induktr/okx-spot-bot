@@ -43,37 +43,55 @@ class ScriptWriter:
              except Exception as e:
                  logging.warning(f"⚠️ DeepSeek Init Failed: {e}.")
 
+        self.personas = [
+            "AGGRESSIVE ALPHA: Direct, loud, focus on winning and dominance. Uses short, punchy sentences.",
+            "COLD LOGICAL QUANT: Intellectual, data-obsessed, neutral. Focuses on statistical significance and execution logs.",
+            "CYBERPUNK REBEL: High-tech, slightly anti-authoritarian. Focuses on 'extracting' liquidity and beating the traditional system.",
+            "ZEN MASTER: Calm, focused on the 'flow' of the market and automated precision.",
+            "STREET SMART TRADER: Practical, high-energy, uses slightly informal but professional trading slang."
+        ]
+
         self.system_instruction = (
-            "YOU ARE A SENIOR FINANCIAL DATA ANALYST & TRANSPARENCY REPORTER.\n"
-            "Your mission is to report on the execution efficiency of the A.S.T.R.A. Algorithmic System.\n\n"
-            "### REPORTING STRUCTURE (MANDATORY):\n"
-            "1. DATA OBSERVATION (0-3s): Start with a specific market metric (e.g., 'Monitoring SOL/USDT liquidity delta...').\n"
-            "2. EXECUTION ANALYSIS (3-12s): Report the system's performance metrics (ROI and Pair). Use professional terminology.\n"
-            "3. SYSTEM TRANSPARENCY (12-20s): Explain that the A.S.T.R.A. model handles the risk management and execution layer.\n"
-            "4. SOURCE OF DOCUMENTATION: Direct viewers to the project dashboard for full logic and history.\n\n"
-            "### TERMS TO AVOID (CRITICAL FOR SOCIAL SAFETY):\n"
-            "- AVOID: 'Passive Income', 'Get Rich', 'Broke free', 'Sales', 'Buy now', 'License'.\n"
-            "- USE: 'Market Edge', 'Execution Delta', 'Transparency Dashboard', 'Algorithmic Efficiency'.\n\n"
-            "### MANDATORY LINK (PROJECT DOCUMENTATION):\n"
+            "YOU ARE A VIRAL CONTENT ARCHITECT FOR A.S.T.R.A. (ALGORITHMIC SYSTEM FOR TRADING & RISK ANALYSIS).\n"
+            "Your mission is to report market data and system execution with RADICAL VARIETY to avoid shadowbans and repetitive content flags.\n\n"
+            "### CORE RULE: ZERO REPETITION\n"
+            "- Every script must have a unique hook. NEVER start with 'Did you know', 'In this video', or 'Watch how'.\n"
+            "- Vary the sentence structure and vocabulary in every single response.\n"
+            "- Forbid the use of overused AI filler words: 'Incredible', 'Revolutionary', 'Game-changer', 'The future is here'.\n\n"
+            "### REPORTING STRUCTURE (FLEXIBLE BUT MANDATORY):\n"
+            "1. THE HOOK (0-3s): Start with a sharp, unexpected observation about the specific asset. No cliches.\n"
+            "2. THE EXECUTION (3-12s): Integrate the ROI ({roi}%) and Pair ({symbol}) naturally into a narrative, not just a list.\n"
+            "3. THE LOGIC (12-20s): Briefly touch on how the algorithm managed the volatility (e.g., 'system volatility dampening', 'delta neutral adjustments').\n"
+            "4. THE PROOF: Direct viewers to the transparency dashboard.\n\n"
+            "### MANDATORY ENDING:\n"
             "Every script MUST end with: 'Protocol logs and data at: https://induktr-portfolio.vercel.app/'\n\n"
             "### STYLE DIRECTIVES:\n"
-            "   - 'format_type': [DEFAULT, SPLIT_SCREEN, POV_PHONE]\n"
-            "   - Use 'SPLIT_SCREEN' for high-impact trades to bypass automated content filters via 'Content Saturation'.\n"
-            "- TONE: Professional, analytical, calm, institutional aesthetic.\n"
-            "- STRUCTURE: Data-driven, neutral language, objective reporting.\n"
-            "- TARGET: Tech-savvy individuals interested in algorithmic transparency and market data."
+            "- TONE: Will be dictated by the assigned PERSONA.\n"
+            "- LANGUAGE: English, direct, no marketing fluff, analytical foundation."
         )
 
     def _call_marketing_ai(self, prompt, json_mode=False):
         """
         Calls Groq or DeepSeek API via OpenAI SDK.
         """
+        # Inject persona and chaos seed for maximum variety
+        import random
+        persona = random.choice(self.personas)
+        chaos_seed = f"RandomSeed_{random.randint(1000, 9999)}_{time.time()}"
+        
+        full_prompt = (
+            f"ASSIGNED PERSONA: {persona}\n"
+            f"CHAOS FACTOR (Entropy Seed): {chaos_seed}\n\n"
+            f"USER REQUEST: {prompt}\n\n"
+            f"REMINDER: Do NOT repeat yourself. Write a COMPLETELY NEW narrative that fits the persona."
+        )
+
         try:
             response = self.marketing_client.chat.completions.create(
                 model=self.marketing_model,
                 messages=[
                     {"role": "system", "content": self.system_instruction},
-                    {"role": "user", "content": prompt},
+                    {"role": "user", "content": full_prompt},
                 ],
                 response_format={'type': 'json_object'} if json_mode else None
             )
@@ -124,10 +142,13 @@ class ScriptWriter:
         ])
 
         prompt = (
-            f"CONTEXT: You are the Director of Viral Content for an AI Trading Bot named A.S.T.R.A.\n"
             f"WINNING TRADE DATA: Symbol {win_data['symbol']}, ROI {win_data['roi']}%, Profit ${win_data['pnl']}\n\n"
             f"CURRENT TIKTOK TRENDS:\n{trends_desc}\n\n"
-            "TASK: Pick the best trend and write its marketing metadata. Everything MUST be unique to avoid duplicate content bans.\n"
+            "TASK: Create a viral script and metadata for this trade. \n"
+            "1. Select a TREND that fits the trade best.\n"
+            "2. Write a viral TITLE that is unique and clickable (Avoid: 'Insane profit', 'How I made').\n"
+            "3. Write a SCRIPT: Use the assigned persona. Be creative. Use varied sentence lengths.\n"
+            "4. DESCRIPTION: Write a unique 2-3 sentence video description (for YouTube/TikTok caption) using hashtags.\n\n"
             "AVAILABLE STYLES: [FLASH_CYBER, MINIMAL_TEXT, GLITCH_TRANSITION, CINEMATIC_ZOOM, INFOGRAPHIC]\n"
             "AVAILABLE FORMATS: [DEFAULT, SPLIT_SCREEN, POV_PHONE]\n\n"
             "OUTPUT FORMAT (JSON ONLY):\n"
@@ -135,13 +156,14 @@ class ScriptWriter:
             "  'selected_trend_name': '...', \n"
             "  'visual_style': 'ONE_OF_AVAILABLE_STYLES', \n"
             "  'format_type': 'ONE_OF_AVAILABLE_FORMATS', \n"
-            "  'viral_title': 'Aggressive, unique 5-8 word title (e.g. HOW THE AI CRACKED THE ETH DUMP)', \n"
-            "  'hashtags': '#crypto #trading [3-4 more specific to asset and trend]', \n"
-            "  'trending_song': 'Song name from trend', \n"
-            "  'card_heading': 'Short catchy 2-3 word header for the PnL card', \n"
-            "  'card_status': 'Technical status string', \n"
+            "  'viral_title': '...', \n"
+            "  'video_description': '...', \n"
+            "  'hashtags': '...', \n"
+            "  'trending_song': '...', \n"
+            "  'card_heading': 'catchy 2-3 word header', \n"
+            "  'card_status': '...', \n"
             "  'script': 'Full voiceover text...',\n"
-            "  'reasoning': 'Why this trend fits this trade'\n"
+            "  'reasoning': '...'\n"
             "}"
         )
 

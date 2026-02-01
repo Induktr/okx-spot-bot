@@ -1,5 +1,6 @@
 import os
 import logging
+import random
 from yt_dlp import YoutubeDL
 
 class AudioDownloader:
@@ -8,7 +9,7 @@ class AudioDownloader:
     Used to ensure every video has high-quality background music.
     """
     def __init__(self):
-        self.output_dir = "data/assets/sounds"
+        self.output_dir = "src/shared/data/assets/sounds"
         os.makedirs(self.output_dir, exist_ok=True)
 
     def download_trending_track(self, song_name: str):
@@ -26,7 +27,7 @@ class AudioDownloader:
             logging.info(f"🎵 AUDIO DOWNLOADER: Track already exists: {output_filename}")
             return output_path
 
-        # Updated options to NOT require FFmpeg for conversion
+        # HIGH-RESILIENCE OPTIONS (Anti-403 Forbidden Protocol)
         ydl_opts = {
             'format': 'bestaudio/best',
             'outtmpl': os.path.join(self.output_dir, f"{clean_name}.%(ext)s"),
@@ -34,18 +35,25 @@ class AudioDownloader:
             'no_warnings': True,
             'default_search': 'ytsearch1:',
             'nocheckcertificate': True,
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'referer': 'https://www.google.com/',
+            # Мимикрия под современный iPhone для обхода блокировок
+            'user_agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+            'referer': 'https://www.youtube.com/',
             'headers': {
-                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
             },
-            'socket_timeout': 10, # 10 seconds timeout
-            'retries': 0,        # Don't try again if blocked
+            'source_address': '0.0.0.0', # Принудительный IPv4
+            'noproxy': True,
+            'socket_timeout': 30,
+            'retries': 5,
+            # Специфические опции против 403 (вращение клиентов)
+            'extractor_args': {'youtube': {'player_client': ['ios', 'android', 'web']}}
         }
 
         try:
             with YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(f"ytsearch1:{song_name} trading audio", download=True)
+                # Ищем именно TikTok версию трека
+                info = ydl.extract_info(f"{song_name} TikTok version", download=True)
                 downloaded_file = ydl.prepare_filename(info)
                 
                 # Double check the file exists with any extension
@@ -76,5 +84,4 @@ class AudioDownloader:
                 
             return None
 
-import random # Ensure random is available for fallback
 audio_downloader = AudioDownloader()

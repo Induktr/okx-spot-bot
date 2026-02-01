@@ -27,12 +27,12 @@ class SocialPublisher:
         import asyncio
         results = {}
         
-        async def safe_post(platform, coro):
+        async def safe_post(platform, coro, timeout=120):
             try:
-                # 2-minute timeout per platform to prevent total hang
-                return await asyncio.wait_for(coro, timeout=120)
+                # Platform-specific timeout
+                return await asyncio.wait_for(coro, timeout=timeout)
             except asyncio.TimeoutError:
-                logging.error(f"⌛ {platform.upper()} Upload timed out (120s limit).")
+                logging.error(f"⌛ {platform.upper()} Upload timed out ({timeout}s limit).")
                 return "TIMEOUT"
             except Exception as e:
                 logging.error(f"❌ {platform.upper()} Error during parallel publish: {e}")
@@ -41,7 +41,7 @@ class SocialPublisher:
         # Setup tasks for parallel execution
         tasks = {
             'telegram': safe_post('telegram', self._post_to_telegram(video_path, description)),
-            'tiktok': safe_post('tiktok', self._post_to_tiktok(video_path, description))
+            'tiktok': safe_post('tiktok', self._post_to_tiktok(video_path, description), timeout=600)
         }
         
         if self.yt_refresh_token:
@@ -137,7 +137,7 @@ class SocialPublisher:
         try:
             from src.shared.utils.tiktok_stealth import tiktok_stealth_upload
             
-            cookie_path = os.path.join(os.getcwd(), "data", "tiktok_cookies.txt")
+            cookie_path = os.path.join(os.getcwd(), "src", "shared", "data", "tiktok_cookies.txt")
             if not os.path.exists(cookie_path):
                 # Try to find the json state which is more important
                 session_state_path = cookie_path.replace('.txt', '.json')
@@ -147,9 +147,17 @@ class SocialPublisher:
             
             # Use headless mode for servers (Linux)
             is_headless = getattr(config, 'HEADLESS_MODE', True) 
-            logging.info(f"🎬 TIKTOK: Starting Stealth Playwright upload (Headless={is_headless})...")
+            # Use proxy from config if available
+            tiktok_proxy = getattr(config, 'TIKTOK_PROXY', None)
+            logging.info(f"🎬 TIKTOK: Starting Stealth upload (Headless={is_headless}, Proxy={'Yes' if tiktok_proxy else 'No'})...")
             
-            result = await tiktok_stealth_upload(video_path, text, cookie_path, headless=is_headless)
+            result = await tiktok_stealth_upload(
+                video_path, 
+                text, 
+                cookie_path, 
+                headless=is_headless,
+                proxy=tiktok_proxy
+            )
             
             if result == "SUCCESS":
                 logging.info("✅ TIKTOK: Stealth Post Successful via Playwright!")
@@ -168,7 +176,7 @@ class SocialPublisher:
         """
         try:
             from src.shared.utils.tiktok_stealth import tiktok_stealth_upload
-            cookie_path = os.path.join(os.getcwd(), "data", "tiktok_cookies.txt")
+            cookie_path = os.path.join(os.getcwd(), "src", "shared", "data", "tiktok_cookies.txt")
             
             logging.info("🎬 TIKTOK: Starting Super-Stealth Playwright upload...")
             result = await tiktok_stealth_upload(video_path, description, cookie_path)
@@ -203,7 +211,7 @@ class SocialPublisher:
             
             # Инициализация клиента
             cl = Client()
-            settings_path = os.path.join(os.getcwd(), "data", "ig_settings.json")
+            settings_path = os.path.join(os.getcwd(), "src", "shared", "data", "ig_settings.json")
             
             # Попытка загрузки старой сессии
             if os.path.exists(settings_path):

@@ -11,7 +11,7 @@ class AudioProvider:
     Fallback/Premium: Can integrate ElevenLabs if API key is present.
     """
     def __init__(self):
-        self.output_dir = "src/data/media_assets"
+        self.output_dir = "src/shared/data/media_assets"
         os.makedirs(self.output_dir, exist_ok=True)
         # Voice mapping for different "Vibes"
         self.voices = {
