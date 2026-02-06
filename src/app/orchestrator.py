@@ -52,7 +52,11 @@ class AstraOrchestrator:
             logging.info(f"⏸️ SYSTEM STANDBY: {reason}")
             return "SUCCESS"
 
-        if await self.risk.check_equity_guardian(traders):
+        # Sensing (Global News) for Smart Guard context
+        headlines = news_aggregator.get_recent_headlines(hours=24)
+        context_str = f"Headlines: {headlines[:5]}\nRecent Mood: Bears on the move."
+
+        if await self.risk.check_equity_guardian(traders, context=context_str):
             return "SUCCESS"
 
         logging.info("🚀 --- STARTING REFACTORED A.S.T.R.A. CYCLE ---")

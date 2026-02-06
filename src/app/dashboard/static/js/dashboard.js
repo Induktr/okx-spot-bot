@@ -434,7 +434,13 @@ async function executeDeleteReports() {
     updateDashboard();
 }
 
-function openResetModal() { document.getElementById('reset-modal').classList.remove('hidden'); }
+function openResetModal() { 
+    const input = document.getElementById('manual-init-balance');
+    if (input && dashboardState.balance !== null) {
+        input.value = dashboardState.balance.toFixed(2);
+    }
+    document.getElementById('reset-modal').classList.remove('hidden'); 
+}
 function closeResetModal() { document.getElementById('reset-modal').classList.add('hidden'); }
 async function executeManualReset() {
     const balance = document.getElementById('manual-init-balance').value;

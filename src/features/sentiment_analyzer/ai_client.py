@@ -236,5 +236,37 @@ class AIAgent:
         
         return {"target_symbol": "NONE", "sentiment_score": 5, "action": "WAIT", "reasoning": "AI unavailable: All Gemini models exhausted."}
 
+    async def analyze_emergency_reversal(self, context: str) -> dict:
+        """
+        Specialized Ultra-Fast Reversal Analysis via Groq.
+        Used by RiskManager to decide if an emergency liquidation is mandatory or if we should hold.
+        """
+        if not config.GROQ_API_KEY:
+            logging.warning("⚠️ No Groq API Key! Falling back to 'Mindless' closure.")
+            return {"reversal_confirmed": True, "reasoning": "No Smart Guard configured."}
+
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(api_key=config.GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
+        
+        system_msg = (
+            "Role: You are the ASTRA smart-emergency guard. Your job is to decide if we should LIQUIDATE all positions or HOLD.\n"
+            "CONTEXT: Equity drawdown limit reached. You must verify if the market trend has truly reversed against our positions.\n"
+            "OUTPUT: Return ONLY a JSON object with 'reversal_confirmed' (bool) and 'reasoning' (max 20 words)."
+        )
+
+        try:
+            response = await client.chat.completions.create(
+                model=config.GROQ_MODEL,
+                messages=[
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": f"MARKET CONTEXT:\n{context}"}
+                ],
+                response_format={ "type": "json_object" }
+            )
+            return json.loads(response.choices[0].message.content)
+        except Exception as e:
+            logging.error(f"Groq Emergency Error: {e}")
+            return {"reversal_confirmed": True, "reasoning": f"Error: {e}"}
+
 # Initialize AI client
 ai_client = AIAgent()

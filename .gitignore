@@ -55,4 +55,4 @@ artifacts/
 # Exceptions (Files we DO want to commit)
 !.env.example
 
-profile.tar.gz
+./profile.tar.gz

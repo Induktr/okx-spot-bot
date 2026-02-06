@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import AsyncMock, patch, MagicMock
 import asyncio
 from src.features.sentiment_analyzer.ai_client import AIAgent
+from src.app.orchestrator import AstraOrchestrator
 
 class TestAITradeLogic(unittest.IsolatedAsyncioTestCase):
     """

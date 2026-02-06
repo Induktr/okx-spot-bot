@@ -43,18 +43,42 @@ class RiskManager:
     def get_limits(self):
         return self.modes[self.current_mode]
 
-    async def check_equity_guardian(self, traders: Dict[str, Any]) -> bool:
-        """Nuclear Safety: Checks if global drawdown exceeds threshold."""
+    async def check_equity_guardian(self, traders: Dict[str, Any], context: Optional[str] = None) -> bool:
+        """Nuclear Safety: Checks if global drawdown exceeds threshold, now with Groq Smart-Check."""
         try:
             analytics = self.tracker.get_analytics()
             dd = float(analytics.get('max_drawdown_pct', 0))
             limit = self.get_limits()["dd_limit"]
             
             if dd > limit:
-                logging.critical(f"🛡️ RISK: Global DD {dd}% exceeds mode {self.current_mode} limit {limit}%!")
-                liquidation_tasks = [t.emergency_liquidate_all() for t in traders.values()]
-                await asyncio.gather(*liquidation_tasks)
-                return True
+                logging.warning(f"🛡️ RISK: Global DD {dd}% exceeds mode {self.current_mode} limit {limit}%. Consulting Groq Smart-Guard...")
+                
+                # Smart Guard Check
+                from src.features.sentiment_analyzer.ai_client import ai_client
+                reversal_analysis = await ai_client.analyze_emergency_reversal(context or "Drawdown limit reached. Unknown context.")
+                
+                if reversal_analysis.get("reversal_confirmed", True):
+                    logging.critical(f"🛡️ RISK: REVERSAL CONFIRMED by Smart-Guard. Liquidating! Reasoning: {reversal_analysis.get('reasoning')}")
+                    liquidation_tasks = [t.emergency_liquidate_all() for t in traders.values()]
+                    await asyncio.gather(*liquidation_tasks)
+                    return True
+                else:
+                    logging.info(f"🛡️ RISK: Smart-Guard says HOLD. reasoning: {reversal_analysis.get('reasoning')}. Ignoring DD limit for this cycle.")
+                    return False
+            
+            # --- FEATURE: THE RATCHET SHIELD (Idea 3) ---
+            # Adaptive Profit Protection based on High-Water Mark
+            peak_dd = float(analytics.get('drawdown_from_peak', 0))
+            hwm = float(analytics.get('high_water_mark', 0))
+            
+            # Ratchet logic: if we are in profit (> initial) and drop 5% from peak, lock it in.
+            # This is "Antifragile" because it captures gains as they happen.
+            if hwm > float(analytics.get('initial_balance', 0)) and peak_dd > 5.0:
+                 logging.warning(f"🛡️ RISK: Ratchet Shield Triggered! Peak DD {peak_dd}% from {hwm} USDT. Locking in profits.")
+                 liquidation_tasks = [t.emergency_liquidate_all() for t in traders.values()]
+                 await asyncio.gather(*liquidation_tasks)
+                 return True
+                 
             return False
         except Exception as e:
             logging.error(f"❌ RISK GUARDIAN ERROR: {e}")

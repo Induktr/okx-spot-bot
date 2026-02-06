@@ -99,6 +99,17 @@ class PortfolioTracker:
         initial_bal = float(history[0]["balance"])
         current_bal = live_bal_float if live_balance is not None else float(history[-1]["balance"])
         
+        # High-Water Mark (Peak balance reached)
+        all_balances = [float(h["balance"]) for h in history]
+        if live_balance is not None:
+            all_balances.append(live_bal_float)
+        hwm = max(all_balances) if all_balances else initial_bal
+        
+        # Drawdown from peak
+        dd_from_peak = 0.0
+        if hwm > 0:
+            dd_from_peak = ((hwm - current_bal) / hwm) * 100
+        
         total_profit = current_bal - initial_bal
         roi = 0.0 if initial_bal == 0 else (total_profit / initial_bal * 100)
         
@@ -108,6 +119,8 @@ class PortfolioTracker:
             "roi_pct": round(float(roi), 2),
             "initial_balance": round(float(initial_bal), 2),
             "current_balance": round(float(current_bal), 2),
+            "high_water_mark": round(float(hwm), 2),
+            "drawdown_from_peak": round(float(dd_from_peak), 2),
             "win_rate": 0,
             "profit_factor": 0,
             "calmar_ratio": 0.0,
