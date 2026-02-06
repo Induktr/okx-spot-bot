@@ -51,11 +51,17 @@ async function updateDashboard() {
 }
 
 async function updateCoreMetrics(data) {
-    if (data.balance !== undefined && dashboardState.balance !== data.balance) {
-        safeSetText('total-balance', `${Number(data.balance).toFixed(2)} USDT`);
+    if (data.balance !== undefined) {
+        const balanceEl = document.getElementById('total-balance');
+        const formatted = `${Number(data.balance).toFixed(2)} USDT`;
+        if (balanceEl && balanceEl.innerText !== formatted) {
+            balanceEl.innerText = formatted;
+            balanceEl.classList.add('animate-pulse');
+            setTimeout(() => balanceEl.classList.remove('animate-pulse'), 1000);
+        }
         dashboardState.balance = data.balance;
     }
-    if (data.positions && dashboardState.posCount !== data.positions.length) {
+    if (data.positions) {
         safeSetText('pos-count', data.positions.length);
         dashboardState.posCount = data.positions.length;
     }
@@ -168,6 +174,9 @@ async function renderLogsTask(entries, botActive) {
     if (container) {
         container.innerHTML = visibleEntries.map((e, index) => {
             const statusColor = e.action === 'BUY' ? 'bg-green-500' : e.action === 'SELL' ? 'bg-red-500' : e.action === 'CLOSE' ? 'bg-white' : 'bg-blue-500';
+            const modelBadgeColor = e.model_name && e.model_name.includes('gemini') ? 'border-blue-500/30 text-blue-400 bg-blue-500/10' : 
+                                  (e.model_name && e.model_name.includes('deepseek') ? 'border-purple-500/30 text-purple-400 bg-purple-500/10' : 'border-green-500/30 text-green-400 bg-green-500/10');
+                                  
             return `
             <div onclick="openModal(${index})" class="glass-panel p-4 bg-white/5 hover:bg-white/10 transition-all border-l-4 cursor-pointer ${e.action === 'BUY' ? 'border-green-500' : e.action === 'SELL' ? 'border-red-500' : 'border-gray-500'}">
                 <div class="flex justify-between items-start mb-2">
@@ -175,7 +184,10 @@ async function renderLogsTask(entries, botActive) {
                         <span class="px-2 py-1 rounded text-[10px] font-bold text-black ${statusColor}">${e.action}</span>
                         <span class="text-xs text-gray-500 font-medium">${e.timestamp}</span>
                     </div>
-                    <span class="text-orbitron text-xs font-bold ${e.score >= 8 ? 'text-green-400' : e.score <= 3 ? 'text-red-400' : 'text-blue-400'}">S: ${e.score}/10</span>
+                    <div class="flex flex-col items-end gap-1">
+                        <span class="text-orbitron text-xs font-bold ${e.score >= 8 ? 'text-green-400' : e.score <= 3 ? 'text-red-400' : 'text-blue-400'}">S: ${e.score}/10</span>
+                        <span class="text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase ${modelBadgeColor}">${e.model_name || 'Gemini'}</span>
+                    </div>
                 </div>
                 <p class="text-xs text-gray-300 italic line-clamp-2">"${e.reasoning}"</p>
             </div>`;
@@ -184,13 +196,46 @@ async function renderLogsTask(entries, botActive) {
     dashboardState.logsHash = currentHash;
 }
 
-async function renderAnalyticsTask(a) {
+async function renderAnalyticsTask(data) {
+    const a = data.analytics;
+    const h = data.system_health;
     if (!a) return;
-    safeSetText('analytics-profit', `${a.total_profit > 0 ? '+' : ''}${a.total_profit.toFixed(2)} USDT`);
-    safeSetText('analytics-roi', `${a.roi_pct.toFixed(2)}% ROI`);
+
+    safeSetText('analytics-profit', `${a.net_profit > 0 ? '+' : ''}${a.net_profit.toFixed(2)} USDT`);
+    const roiEl = document.getElementById('analytics-roi');
+    if (roiEl) {
+        roiEl.innerText = `${a.roi_pct > 0 ? '+' : ''}${a.roi_pct.toFixed(2)}% ROI`;
+        roiEl.className = `text-[10px] font-bold mt-1 ${a.roi_pct >= 0 ? 'text-green-400' : 'text-red-400'}`;
+    }
     safeSetText('analytics-initial', `${a.initial_balance.toFixed(2)} USDT`);
-    safeSetText('analytics-current', `${a.current_balance.toFixed(2)} USDT`);
-    safeSetText('analytics-drawdown', `Max Drawdown: -${a.max_drawdown_pct.toFixed(2)}%`);
+    
+    // Pro Metrics
+    safeSetText('analytics-calmar', a.calmar_ratio.toFixed(2));
+    safeSetText('analytics-vol', `${a.daily_volatility.toFixed(2)}%`);
+    safeSetText('analytics-profit-factor', a.profit_factor.toFixed(2));
+    safeSetText('analytics-recovery', a.recovery_factor.toFixed(2));
+    safeSetText('analytics-winrate', `Win Rate: ${a.win_rate}%`);
+    safeSetText('analytics-start-date', `Started on ${new Date(a.start_time).toLocaleDateString()}`);
+
+    // System Health
+    if (h) {
+        safeSetText('health-reliability', `${h.ai_reliability_pct}%`);
+        safeSetText('health-latency', `${Math.round(h.avg_cycle_latency_ms)}ms`);
+        const hCard = document.getElementById('health-card');
+        if (hCard) {
+            hCard.className = `glass-panel p-4 border-${h.status === 'HEALTHY' ? 'green' : (h.status === 'WARNING' ? 'orange' : 'red')}-500/10 bg-${h.status === 'HEALTHY' ? 'green' : (h.status === 'WARNING' ? 'orange' : 'red')}-500/5 transition-all`;
+        }
+    }
+
+    // Kaizen Insight Simulation/Fetch (assuming it comes from the last analysis reasoning for now or a dedicated field)
+    const logContainer = document.getElementById('log-container');
+    if (logContainer && data.entries && data.entries.length > 0) {
+        // Find the latest Kaizen report if available (marked by specific keywords in reasoning or separate field)
+        const kaizenEntry = data.entries.find(e => e.reasoning && e.reasoning.includes('Kaizen'));
+        if (kaizenEntry) {
+            safeSetText('kaizen-insight', kaizenEntry.reasoning);
+        }
+    }
 }
 
 async function updateChartsTask(entries) {
@@ -454,8 +499,38 @@ function openModal(index) {
     }
 
     document.getElementById('modal-reasoning').innerText = entry.reasoning;
-    safeSetText('modal-tp', `+${((details.tp_pct || 0) * 100).toFixed(1)}%`);
-    safeSetText('modal-sl', `-${((details.sl_pct || 0) * 100).toFixed(1)}%`);
+    
+    // Model Badge in Modal
+    const modelEl = document.getElementById('modal-model');
+    if (modelEl) {
+        const modelName = entry.model_name || 'GEMINI-FLASH';
+        modelEl.innerText = modelName.toUpperCase();
+        const modelClass = modelName.includes('gemini') ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 
+                          (modelName.includes('deepseek') ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 'bg-green-500/20 text-green-400 border-green-500/30');
+        modelEl.className = `text-[9px] font-bold px-2 py-0.5 rounded border uppercase font-mono ${modelClass}`;
+    }
+
+    // Display percentages correctly regardless of format (0.03 vs 3.0)
+    let tpVal = details.tp_pct || 0;
+    let slVal = details.sl_pct || 0;
+    
+    // Normalize: if 0.085 -> 8.5%, if 8.5 -> 8.5%
+    if (tpVal > 0 && tpVal < 0.5) tpVal = tpVal * 100;
+    if (slVal > 0 && slVal < 0.5) slVal = slVal * 100;
+    
+    safeSetText('modal-tp', `+${tpVal.toFixed(1)}%`);
+    safeSetText('modal-sl', `-${slVal.toFixed(1)}%`);
+
+    // Add Margin Risk info to reasoning
+    const marginRisk = (slVal * (details.leverage || 1)).toFixed(1);
+    const reasoningEl = document.getElementById('modal-reasoning');
+    if (reasoningEl) {
+        reasoningEl.innerHTML = `<div class="mb-3 text-gray-200">"${entry.reasoning}"</div>
+                                 <div class="mt-4 pt-3 border-t border-white/10 flex justify-between items-center">
+                                    <span class="text-[10px] text-gray-400 font-bold uppercase">Collateral Risk (SL x LVG)</span>
+                                    <span class="text-xs font-bold ${marginRisk >= 50 ? 'text-red-500' : 'text-yellow-400'}">${marginRisk}% of Margin</span>
+                                 </div>`;
+    }
     
     document.getElementById('detail-modal').classList.remove('hidden');
 }
@@ -470,5 +545,5 @@ function openBalanceModal() {
 function closeBalanceModal() { document.getElementById('balance-modal').classList.add('hidden'); }
 
 // Init
-setInterval(updateDashboard, 5000);
+setInterval(updateDashboard, 3000);
 updateDashboard();

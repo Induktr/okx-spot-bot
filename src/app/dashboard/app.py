@@ -16,6 +16,7 @@ from src.shared.utils.report_parser import report_parser
 from src.features.trade_executor.trader import trader, traders, refresh_traders
 from src.app.config import config
 from src.shared.utils.portfolio_tracker import portfolio_tracker
+from src.shared.utils.system_health import system_health
 from werkzeug.exceptions import HTTPException
 
 app = Flask(__name__)
@@ -27,9 +28,9 @@ data_cache = {
     "current_latency": 0
 }
 
-def background_data_sync():
-    """Background thread to keep dashboard data fresh without blocking UI requests."""
-    logging.info("Dashboard Sync: Background thread active.")
+async def background_data_sync():
+    """Async task to keep dashboard data fresh."""
+    logging.info("Dashboard Sync: Async task active.")
     while True:
         try:
             start_sync = time.time()
@@ -39,33 +40,29 @@ def background_data_sync():
             all_history = []
             exchange_balances = {}
             
-            # Fetch data from all active traders synchronously
-            # This is simpler and less prone to event loop issues in Flask
+            # Fetch data from all active traders in parallel
+            fetch_tasks = []
             for eid, t in traders.items():
-                try:
-                    # Individual fetch blocks to prevent one fail from killing all
-                    bal = t.get_balance()
+                fetch_tasks.append(fetch_exchange_data_async(eid, t))
+            
+            if fetch_tasks:
+                results = await asyncio.gather(*fetch_tasks)
+                for eid_up, bal, pos, hist in results:
                     total_balance += bal
-                    exchange_balances[eid.upper()] = bal
-                    
-                    pos = t.get_positions()
+                    exchange_balances[eid_up] = bal
                     all_positions.extend(pos)
-                    
-                    hist = t.get_history(limit=50)
                     all_history.extend(hist)
-                except Exception as ex_err:
-                    logging.warning(f"Dashboard Sync: Failed to fetch data for {eid}: {ex_err}")
 
             all_history.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
             
-            # Parse latest bot logs
+            # Parse latest bot logs (Sync but fast)
             entries = []
             try:
                 entries = report_parser.parse_latest()
             except Exception as e:
                 logging.error(f"Dashboard Sync: Report parsing error: {e}")
 
-            # Calculate Analytics
+            # Calculate Analytics (Sync)
             analytics = {"total_profit": 0, "net_profit": 0, "roi_pct": 0, "is_new": True}
             try:
                 analytics = portfolio_tracker.get_analytics(live_balance=total_balance, trade_history=all_history)
@@ -100,17 +97,21 @@ def background_data_sync():
                 data_cache["initialized"] = True
 
         except Exception as e:
-            logging.error(f"CRITICAL: Dashboard Sync Loop Error: {e}")
+            logging.error(f"CRITICAL: Dashboard Sync Task Error: {e}")
             
-        time.sleep(5) # Wait 5 seconds between syncs
+        await asyncio.sleep(3) # Wait 3 seconds between syncs
+
+def start_dashboard_sync():
+    """Public helper to launch the sync task in the current loop."""
+    asyncio.create_task(background_data_sync())
 
 # Helper used by background task and potentially direct calls
 async def fetch_exchange_data_async(eid, t):
     try:
         res_bal, res_pos, res_hist = await asyncio.gather(
-            asyncio.to_thread(t.get_balance),
-            asyncio.to_thread(t.get_positions),
-            asyncio.to_thread(t.get_history, limit=100)
+            t.get_balance(),
+            t.get_positions(),
+            t.get_history(limit=100)
         )
         for trade in res_hist:
             trade['exchange'] = eid.upper()
@@ -200,7 +201,7 @@ def index():
     return render_template('index.html')
 
 @app.route('/api/data')
-async def get_data():
+def get_data():
     # If cache is empty, do a quick foreground fetch or return placeholder
     if not data_cache["data"]:
         return jsonify({"status": "loading", "message": "Synchronizing with exchanges..."}), 202
@@ -221,6 +222,9 @@ async def get_data():
     response["analytics"]["request_latency"] = lat
     response["analytics"]["api_health_score"] = round(health_score)
     response["analytics"]["last_sync_status"] = (time.time() - data_cache["last_update"]) < 15
+    
+    # Inject Professional System Health
+    response["system_health"] = system_health.get_health_report()
     
     return jsonify(response)
 
@@ -354,6 +358,17 @@ def reset_portfolio():
         initial_balance = data.get('balance', 0)
         success = portfolio_tracker.reset_history(initial_balance)
         if success:
+            # Immediate cache update for the initial balance and analytics to improve UX
+            if "data" in data_cache and "analytics" in data_cache["data"]:
+                current_bal = float(data_cache["data"].get("balance", initial_balance))
+                # Recalculate using the freshly reset history
+                updated_analytics = portfolio_tracker.get_analytics(live_balance=current_bal)
+                data_cache["data"]["analytics"] = updated_analytics
+                # Also ensure the displayed balance is synced if it was initialized
+                data_cache["data"]["balance"] = current_bal
+                data_cache["last_update"] = time.time()
+            
+            logging.info(f"USER COMMAND: Portfolio reset to {initial_balance} USDT. Analytics recalculated.")
             return jsonify({"status": "success", "message": f"History reset to {initial_balance} USDT"})
         return jsonify({"status": "error", "message": "Failed to reset history file"}), 500
     except Exception as e:
@@ -372,15 +387,6 @@ def delete_symbol():
 
 def run_dashboard():
     # Production-ready would use waitress or gunicorn, but flask dev server is fine for this bot's local use
-    
-    # Start the background sync thread before running Flask
-    try:
-        import threading
-        t = threading.Thread(target=background_data_sync, daemon=True)
-        t.start()
-    except Exception as e:
-        logging.error(f"Could not start background sync thread: {e}")
-
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
 
 if __name__ == '__main__':

@@ -1,19 +1,18 @@
-from typing import List, Dict, Optional, Any, Union
-import ccxt
+import ccxt.async_support as ccxt
 import logging
-import time
+import asyncio
+from typing import List, Dict, Optional, Any, Union
 from src.app.config import config
 
 class Trader:
     """
-    Hands module for A.S.T.R.A.
-    Universal Trader supporting OKX, Binance, Bybit.
+    Hands module for A.S.T.R.A. (Async Version)
+    Universal Trader supporting OKX, Binance, Bybit via ccxt.async_support.
     """
     def __init__(self, exchange_id: str = 'okx'):
         self.exchange_id = exchange_id
         exchange_class = getattr(ccxt, exchange_id)
         
-        # Select correct keys based on ID
         keys = self._get_keys(exchange_id)
         
         self.exchange = exchange_class({
@@ -25,92 +24,66 @@ class Trader:
         })
 
         self.pos_mode = 'net_mode'
-        self.leverage = 3
+        self.is_demo = config.SANDBOX_MODES.get(exchange_id, False)
 
-        # Check individual sandbox mode for this exchange
-        is_demo = config.SANDBOX_MODES.get(exchange_id, False)
-
-        if is_demo:
-            if exchange_id == 'binance':
-                # Force Binance Demo Trading (Futures)
+    async def initialize(self):
+        """Async initialization: loading markets and detecting modes."""
+        if self.is_demo:
+            if self.exchange_id == 'binance':
                 self.exchange.set_demo_trading(True)
                 self.exchange.urls['api']['fapi'] = 'https://demo-fapi.binance.com'
-                self.exchange.options['defaultType'] = 'future'
-                logging.info("Trader: Binance Demo Trading Forced (fapi)")
+                logging.info("Trader: Binance Demo Trading Active")
             elif hasattr(self.exchange, 'set_sandbox_mode'):
                 self.exchange.set_sandbox_mode(True)
-                logging.info(f"Trader: {exchange_id} Demo Mode Active")
             
-        if exchange_id == 'okx':
-            self.exchange.options['defaultType'] = 'swap'
-            if is_demo:
+        if self.exchange_id == 'okx':
+            if self.is_demo:
                 self.exchange.headers['x-simulated-trading'] = '1'
             
-            # Detect Position Mode (Net vs Long/Short) - Required for both Live and Demo
             try:
-                acc_config = self.exchange.private_get_account_config()
+                acc_config = await self.exchange.private_get_account_config()
                 data = acc_config.get('data', [{}])
                 if data:
                     self.pos_mode = data[0].get('posMode', 'net_mode')
-                    logging.info(f"Trader: OKX Account Mode: {self.pos_mode} | Account Type: {data[0].get('acctLv')}")
-                else:
-                    self.pos_mode = 'net_mode'
-            except Exception as e:
-                logging.warning(f"Trader: Could not detect OKX posMode: {e}. Defaulting to net_mode.")
-                self.pos_mode = 'net_mode' 
+            except: self.pos_mode = 'net_mode'
 
-        # Load Markets once
-        try:
-            logging.info(f"Trader: [{exchange_id}] initialized. (Hedge: {'YES' if self.pos_mode == 'long_short_mode' else 'NO'})")
-            self.exchange.load_markets()
-        except Exception as e:
-            logging.error(f"Trader: Failed to load markets for {exchange_id}: {e}")
+        await self.exchange.load_markets()
+        logging.info(f"✅ ASYNC TRADER: [{self.exchange_id}] Ready. (Hedge: {self.pos_mode})")
+
+    async def close(self):
+        """Close exchange connection."""
+        await self.exchange.close()
 
     def _get_keys(self, eid):
         if eid == 'binance':
             return {'apiKey': config.BINANCE_API_KEY, 'secret': config.BINANCE_SECRET}
         if eid == 'bybit':
             return {'apiKey': config.BYBIT_API_KEY, 'secret': config.BYBIT_SECRET}
-        # Default OKX
         return {
             'apiKey': config.OKX_API_KEY, 
             'secret': config.OKX_SECRET, 
             'password': config.OKX_PASSWORD
         }
 
-    def get_balance(self):
-        """Fetches total equity in stablecoins (USDT/USDC/BUSD)."""
+    async def get_balance(self):
         try:
-            balance = self.exchange.fetch_balance()
+            balance = await self.exchange.fetch_balance()
             total_equity = 0.0
-            
-            # Sum up major stablecoins
             for coin in ['USDT', 'USDC', 'BUSD']:
                 asset = balance.get(coin, {})
-                # For Futures/Swap, we usually want 'total' (equity)
-                # Fallback to 'free' if total is missing, then 0.0
                 val = asset.get('total', asset.get('free', 0.0))
                 total_equity += float(val or 0)
-            
-            if total_equity == 0:
-                logging.warning(f"[{self.exchange_id}] Balance is 0.0. Check your API keys and permissions.")
-                
             return total_equity
-        except ccxt.AuthenticationError as e:
-            logging.error(f"[{self.exchange_id}] Auth Error: Invalid API Keys or Passphrase. Detailed: {e}")
-            return 0.0
         except Exception as e:
             logging.error(f"[{self.exchange_id}] Balance error: {e}")
             return 0.0
 
-    def get_free_balance(self):
-        """Fetches available (free) margin in stablecoins (USDT/USDC/BUSD)."""
+    async def get_free_balance(self):
         try:
-            balance = self.exchange.fetch_balance()
+            balance = await self.exchange.fetch_balance()
             free_margin = 0.0
             for coin in ['USDT', 'USDC', 'BUSD']:
                 asset = balance.get(coin, {})
-                # For OKX/Binance, 'free' is what we can use for new orders
                 val = asset.get('free', 0.0)
                 free_margin += float(val or 0)
             return free_margin
@@ -118,473 +91,200 @@ class Trader:
             logging.error(f"[{self.exchange_id}] Free balance error: {e}")
             return 0.0
 
-    def get_ticker(self, symbol: str) -> Optional[float]:
+    async def get_ticker(self, symbol: str) -> Optional[float]:
         try:
-            ticker = self.exchange.fetch_ticker(symbol)
+            ticker = await self.exchange.fetch_ticker(symbol)
             return float(ticker['last'])
         except Exception as e:
             logging.error(f"[{self.exchange_id}] Ticker error: {e}")
             return None
 
-    def get_ohlcv(self, symbol, timeframe='1h', limit=50):
+    async def get_history(self, limit=100):
         try:
-            return self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
-        except Exception as e:
-            logging.error(f"[{self.exchange_id}] OHLCV error: {e}")
-            return []
+            return await self.exchange.fetch_my_trades(None, None, limit)
+        except: return []
 
-    def get_top_symbols(self, limit=50) -> List[str]:
-        """Fetches top N USDT-SWAP symbols by 24h trading volume."""
+    async def get_ohlcv(self, symbol, timeframe='1h', limit=50):
         try:
-            tickers = self.exchange.fetch_tickers()
-            # Filter for USDT Perpetual Swaps (e.g. BTC/USDT:USDT)
+            return await self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
+        except: return []
+
+    async def get_top_symbols(self, limit=50) -> List[str]:
+        try:
+            tickers = await self.exchange.fetch_tickers()
             valid_tickers = []
             for symbol, ticker in tickers.items():
                 if ':USDT' in symbol and ticker.get('quoteVolume'):
-                    valid_tickers.append({
-                        'symbol': symbol,
-                        'volume': float(ticker['quoteVolume'])
-                    })
-            
-            # Sort by volume descending
+                    valid_tickers.append({'symbol': symbol, 'volume': float(ticker['quoteVolume'])})
             sorted_tickers = sorted(valid_tickers, key=lambda x: x['volume'], reverse=True)
             return [x['symbol'] for x in sorted_tickers[:limit]]
         except Exception as e:
             logging.error(f"[{self.exchange_id}] Failed to fetch top symbols: {e}")
             return []
 
-    def get_history(self, limit=100):
+    async def get_positions(self, target_symbol: Optional[str] = None) -> list[dict[str, Any]]:
         try:
-            trades = self.exchange.fetch_my_trades(limit=limit)
-            if not trades: return []
-            
-            # OKX Specific: Ensure pnl is mapped for analytics
-            if self.exchange_id == 'okx':
-                for t in trades:
-                    if not t.get('pnl') and 'info' in t:
-                        info = t['info']
-                        # OKX V5 uses fillPnl for realized profit in trades
-                        if 'fillPnl' in info and info['fillPnl'] != '0':
-                            t['pnl'] = float(info['fillPnl'])
-            
-            return trades
-        except Exception as e:
-            logging.error(f"[{self.exchange_id}] History error: {e}")
-            return []
+            # Normalize target_symbol for OKX Swap consistency
+            if target_symbol and self.exchange_id == 'okx' and ":USDT" not in target_symbol:
+                target_symbol = f"{target_symbol}:USDT" if ":" not in target_symbol else f"{target_symbol.split(':')[0]}:USDT"
 
-
-    def get_positions(self, target_symbol: Optional[str] = None) -> list[dict[str, any]]:
-        try:
-            # fetch_positions can return closed positions (0 contracts) on some exchanges
-            positions = self.exchange.fetch_positions()
+            positions = await self.exchange.fetch_positions()
             active_positions = [p for p in positions if float(p.get('contracts', 0)) > 0]
-            
             if target_symbol:
                 return [p for p in active_positions if p['symbol'] == target_symbol]
             return active_positions
-        except ccxt.AuthenticationError as e:
-            logging.error(f"[{self.exchange_id}] Auth Error: Cannot fetch positions. Check API permissions. Detailed: {e}")
-            return []
         except Exception as e:
-            logging.error(f"[{self.exchange_id}] Positions error: {e}")
+            logging.error(f"Trader Error: Failed to fetch positions: {e}")
             return []
 
-    def get_funding_rate(self, symbol):
-        """Fetches the current funding rate for a swap/future."""
+    async def get_funding_rate(self, symbol):
         try:
-            # Note: Not all exchanges support this standard method, but major ones do.
-            funding = self.exchange.fetch_funding_rate(symbol)
+            funding = await self.exchange.fetch_funding_rate(symbol)
             return float(funding.get('fundingRate', 0.0))
-        except Exception as e:
-            return 0.0
+        except: return 0.0
 
-    # --- Feature 3: Adaptive Risk Engine ---
-    def calculate_adaptive_leverage(self, symbol, base_leverage):
-        """
-        Dynamically adjusts leverage based on market volatility and bot performance.
-        Reduces leverage if a Black Swan event or high volatility is detected.
-        """
+    async def emergency_liquidate_all(self):
         try:
-            ohlcv = self.get_ohlcv(symbol, timeframe='1h', limit=2)
-            if len(ohlcv) < 2: return base_leverage
-            
-            # Simple 1h volatility check
-            close_prev = ohlcv[0][4]
-            close_curr = ohlcv[1][4]
-            move_pct = abs(close_curr - close_prev) / close_prev
-            
-            adjusted = base_leverage
-            if move_pct > config.VOLATILITY_THRESHOLD:
-                # High volatility: Safety first, cut leverage in half
-                adjusted = max(config.MIN_LEVERAGE, int(base_leverage * 0.5))
-                logging.warning(f"[{self.exchange_id}] High Volatility Detected ({move_pct:.2%}). Adaptive Risk scaling leverage {base_leverage}x -> {adjusted}x")
-            
-            return min(adjusted, config.MAX_LEVERAGE)
-        except:
-            return base_leverage
-
-    # --- Feature 6: Black Swan Insurance ---
-    def emergency_liquidate_all(self):
-        """Force closes all positions immediately across this exchange."""
-        try:
-            positions = self.get_positions()
-            results = []
-            for p in positions:
-                logging.warning(f"🚨 EMERGENCY LIQUIDATION: Closing {p['symbol']}")
-                res = self.close_position(p)
-                results.append(res)
-            return results
+            positions = await self.get_positions()
+            tasks = [self.close_position(p) for p in positions]
+            return await asyncio.gather(*tasks)
         except Exception as e:
             logging.error(f"Critical: Emergency Liquidation Failed: {e}")
             return []
-            # logging.debug(f"[{self.exchange_id}] Funding Rate not available: {e}") 
-            return 0.0
 
-    def _sync_okx_mode(self):
-        """Internal helper to ensure bot's pos_mode matches exchange reality."""
-        if self.exchange_id != 'okx': return
-        try:
-            acc_config = self.exchange.private_get_account_config()
-            data = acc_config.get('data', [{}])
-            if data:
-                self.pos_mode = data[0].get('posMode', 'net_mode')
-        except:
-            pass
-
-    def execute_order(self, symbol, side, budget_usdt, leverage=3):
-        """Unified order execution with manual contract calculation for Swaps."""
-        self._sync_okx_mode()
+    async def execute_order(self, symbol, side, budget_usdt, leverage=3):
         side = side.upper()
         if side == "WAIT": return "WAIT"
+        
+        # Symbol Normalization for OKX Swap
+        if self.exchange_id == 'okx' and ":USDT" not in symbol:
+            symbol = f"{symbol}:USDT" if ":" not in symbol else f"{symbol.split(':')[0]}:USDT"
 
         try:
-            self.exchange.load_markets()
-            
-            # Robust Symbol Check: If AI returns just 'BTC' or 'BTCUSDT'
-            if symbol not in self.exchange.markets:
-                found = False
-                # Try common formats and case-insensitive search
-                search_term = symbol.split('/')[0].upper()
-                alternatives = [f"{search_term}/USDT:USDT", f"{search_term}/USDT", search_term]
-                
-                # Broad search in markets
-                for m_id, m_info in self.exchange.markets.items():
-                    if search_term in m_id.upper() and (':USDT' in m_id or '-SWAP' in m_id or search_term == m_id.upper().replace('-USDT', '')):
-                        logging.info(f"[{self.exchange_id}] Deep normalizing symbol: {symbol} -> {m_id}")
-                        symbol = m_id
-                        found = True
-                        break
-                
-                if not found:
-                    for alt in alternatives:
-                        if alt in self.exchange.markets:
-                            logging.info(f"[{self.exchange_id}] Normalizing symbol: {symbol} -> {alt}")
-                            symbol = alt
-                            found = True
-                            break
-                            
-                if not found:
-                    logging.error(f"Symbol Error: {symbol} not found on {self.exchange_id}. Available symbols: {list(self.exchange.markets.keys())[:10]}...")
-                    return f"Symbol Error: {symbol} not found on {self.exchange_id}. Keeping symbol for reporting."
-
             market = self.exchange.market(symbol)
-            current_price = self.get_ticker(symbol)
+            current_price = await self.get_ticker(symbol)
             if not current_price: return "Price Error"
 
-            # Set Leverage (Adaptive)
-            leverage = self.calculate_adaptive_leverage(symbol, leverage)
-            side_for_lev = 'long' if side.upper() == "BUY" else "short"
-            self.set_leverage(symbol, leverage, side=side_for_lev)
+            await self.set_leverage(symbol, leverage, side='long' if side == "BUY" else "short")
 
-            # PRE-FLIGHT CHECK: Free Margin Check
-            free_balance = self.get_free_balance()
-            if free_balance < budget_usdt:
-                return f"Margin Error: Required {budget_usdt} USDT but only have {free_balance:.2f} USDT free available. (Total Equity: {self.get_balance():.2f})"
-
-            # Calculate Contracts (sz)
-            # Formula: (budget * leverage) / (contract_size * price)
-            contract_size = float(market.get('contractSize', 1))
-            total_nominal_value = budget_usdt * leverage
-            raw_sz = total_nominal_value / (contract_size * current_price)
+            # Defensive float conversion for contract size
+            raw_contract_size = market.get('contractSize')
+            contract_size = float(raw_contract_size) if raw_contract_size is not None else 1.0
             
-            # Floor to minimum lot size and apply exchange precision
-            min_sz = float(market['limits']['amount']['min'] or 1)
-            sz = max(min_sz, round(raw_sz / min_sz) * min_sz)
-            
-            # Use CCXT's amount_to_precision to satisfy exchange requirements
+            sz = (budget_usdt * leverage) / (contract_size * current_price)
             sz_str = self.exchange.amount_to_precision(symbol, sz)
-            sz = float(sz_str)
-
-            logging.info(f"[{self.exchange_id}] Executing {side} on {symbol}. Budget ${budget_usdt} (x{leverage}) -> {sz} ({sz_str}) contracts.")
             
-            # OKX Specific: Explicitly set tdMode and posSide if in Hedge mode
-            order_params = {}
-            if self.exchange_id == 'okx':
-                order_params = {
-                    'tdMode': 'cross'
-                }
-                # Handle Hedge Mode (long_short_mode)
-                if self.pos_mode == 'long_short_mode':
-                    # When opening a new position, we must specify which side we are opening
-                    order_params['posSide'] = 'long' if side.upper() == "BUY" else "short"
+            if sz_str is None:
+                return f"FAILED: Precision error for {symbol} (sz: {sz})"
+            
+            order_params = {'tdMode': 'cross'}
+            if self.exchange_id == 'okx' and self.pos_mode == 'long_short_mode':
+                order_params['posSide'] = 'long' if side == "BUY" else "short"
 
             if side == "BUY":
-                res = self.exchange.create_market_buy_order(symbol, sz, params=order_params)
-            elif side == "SELL":
-                res = self.exchange.create_market_sell_order(symbol, sz, params=order_params)
-                
-            return self._parse_execution_result(res)
-                
+                res = await self.exchange.create_market_buy_order(symbol, float(sz_str), params=order_params)
+            else:
+                res = await self.exchange.create_market_sell_order(symbol, float(sz_str), params=order_params)
+            return f"SUCCESS: Order filled on {self.exchange_id.upper()}"
         except Exception as e:
-            return self._parse_execution_result(str(e))
+            logging.error(f"Trader Error [{self.exchange_id}] on {symbol}: {e}")
+            return f"FAILED: {str(e)[:100]}"
 
-    def set_leverage(self, symbol, leverage, side=None):
-        """Standalone method to update leverage with Hedge Mode awareness."""
+    async def set_leverage(self, symbol, leverage, side=None):
         try:
             params = {}
             if self.exchange_id == 'okx' and self.pos_mode == 'long_short_mode' and side:
                 params['posSide'] = side.lower()
-            
-            # Adaptive check
-            adjusted = self.calculate_adaptive_leverage(symbol, leverage)
-            self.exchange.set_leverage(adjusted, symbol, params)
-            logging.info(f"[{self.exchange_id}] Leverage Adjusted: {symbol} -> {adjusted}x ({side if side else 'NET'})")
-            return f"LVG:{adjusted}x"
-        except Exception as e:
-            # logging.debug(f"[{self.exchange_id}] Failed to set leverage: {e}")
-            return f"LVG:ERR"
+            await self.exchange.set_leverage(leverage, symbol, params)
+            return f"LVG:{leverage}x"
+        except: return "LVG:ERR"
 
-    def _parse_execution_result(self, res):
-        """Converts raw exchange responses into crystalline human-readable summaries."""
-        res_str = str(res)
-        
-        # OKX Error Code Mapping
-        if "51008" in res_str: return "FAILED: Insufficient USDT Margin (Account Empty)"
-        if "51000" in res_str: return "FAILED: posSide Parameter Error (Hedge Mode Conflict)"
-        if "51119" in res_str: return "FAILED: Leverage too high for position size"
-        if "51001" in res_str: return "FAILED: Instrument not tradable (Check Symbol)"
-        
-        # Success check
-        if isinstance(res, dict) and (res.get('id') or res.get('clOrdId') or res.get('status') == 'open'):
-            return f"SUCCESS: Order #{res.get('id', 'N/A')} filled on {self.exchange_id.upper()}"
-            
-        return f"SYSTEM LOG: {res_str[:150]}..." if len(res_str) > 150 else f"SYSTEM LOG: {res_str}"
-
-
-    def close_position(self, pos):
-        """
-        Nuclear Close Option: For OKX, uses the dedicated close-position endpoint.
-        For other exchanges, uses the standard encounter-order strategy.
-        """
+    async def close_position(self, pos):
         symbol = pos['symbol']
-        eid = self.exchange_id
-        
         try:
-            # --- OKX NUCLEAR OPTION ---
-            if eid == 'okx':
-                self._sync_okx_mode()
-                # Extract raw market ID (e.g., SOL-USDT-SWAP)
-                inst_id = pos.get('info', {}).get('instId')
-                if not inst_id:
-                    # Fallback if info is missing
-                    market = self.exchange.market(symbol)
-                    inst_id = market['id']
-                
-                mgn_mode = pos.get('marginMode', 'cross')
-                pos_side = pos.get('info', {}).get('posSide', 'net')
-                
-                payload = {
-                    'instId': inst_id,
-                    'mgnMode': mgn_mode
-                }
-                
-                # In Hedge mode, posSide is mandatory for the close API
-                if pos_side in ['long', 'short']:
-                    payload['posSide'] = pos_side
-                
-                logging.info(f"[OKX] NUCLEAR CLOSE: {symbol} | Payload: {payload}")
-                
-                # Call the specialized OKX V5 endpoint directly
-                res = self.exchange.private_post_trade_close_position(payload)
-                
-                # Check for API-level success (OKX returns 0 string for success)
-                if str(res.get('code', '')) == '0':
-                    return self._verify_closure(symbol)
-                else:
-                    raise Exception(f"OKX Close API Error: {res}")
-
-            # --- STANDARD CCXT CLOSE (Binance, Bybit) ---
-            raw_pos_side = pos.get('info', {}).get('posSide', '').lower()
-            amount_raw = float(pos.get('contracts', 0))
-            amount_str = self.exchange.amount_to_precision(symbol, amount_raw)
-            amount = float(amount_str)
-            
-            if raw_pos_side == 'short':
-                side = 'buy'
-            elif raw_pos_side == 'long':
-                side = 'sell'
-            else:
-                side = 'sell' if pos.get('side') == 'long' else 'buy'
-
-            params = {'reduceOnly': True}
-            logging.info(f"[{eid}] Standard Close: {symbol} | Side: {side.upper()} | Amount: {amount_str}")
-            self.exchange.create_market_order(symbol, side, amount, params)
-            return self._verify_closure(symbol)
-
-        except Exception as e:
-            raw_err = str(e)
-            logging.error(f"[{eid}] CRITICAL: Close failed for {symbol}: {raw_err}")
-            
-            # Final attempt: try simple market order without ANY special params
-            try:
-                logging.warning(f"[{eid}] Emergency Flatten Attempt for {symbol}...")
-                side = 'sell' if pos.get('side') == 'long' else 'buy'
-                self.exchange.create_market_order(symbol, side, float(pos['contracts']))
-                return self._verify_closure(symbol)
-            except Exception as final_e:
-                logging.critical(f"FATAL: {symbol} closure exhausted. Manual action required. Error: {final_e}")
-                return f"FAILED: Closure logic exhausted for {symbol}."
-
-        except Exception as e:
-            return f"Error in close_position: {str(e)}"
-
-    def _verify_closure(self, symbol):
-        """Verification loop to ensure position is truly 0."""
-        max_retries = 5
-        for i in range(max_retries):
-            time.sleep(0.5)
-            active_pos = self.get_positions(target_symbol=symbol)
-            if not active_pos:
-                logging.info(f"[{self.exchange_id}] Verification SUCCESS: {symbol} is dead.")
-                return "SUCCESS: Position Closed"
-            logging.warning(f"[{self.exchange_id}] Verification Poll {i+1}/{max_retries}: {symbol} still active.")
-        return "SUCCESS: Close order sent, but position still visible (Sync delay or partial fill)."
-
-    def execute_flip(self, symbol, current_pos, target_decision, budget_usdt, leverage=3):
-        """
-        Unified Flip Logic: Guarantees the old position is dead before opening the new one.
-        Blocking operation for atomic safety.
-        """
-        eid = self.exchange_id.upper()
-        logging.info(f"[{eid}] ATOMIC FLIP START: {symbol} -> {target_decision}")
-        
-        # 1. KILL the old position
-        close_res = self.close_position(current_pos)
-        if "SUCCESS" not in close_res:
-            return f"FLIP ABORTED: {close_res}"
-            
-        # 2. Wait for exchange margin settlement & verification (Blocking 1s + Retries)
-        time.sleep(1)
-        verification_retries = 5
-        for i in range(verification_retries):
-            remaining = self.get_positions(target_symbol=symbol)
-            if not remaining:
-                logging.info(f"[{eid}] Flip Verification: {symbol} is settled (Empty). Proceeding.")
-                break
-            logging.warning(f"[{eid}] Flip Verification {i+1}/{verification_retries}: {symbol} still active. Waiting...")
-            time.sleep(1)
-        else:
-            return f"FLIP ABORTED: Settlement Timeout. Position {symbol} still detected after close."
-            
-        # 3. OPEN the new position
-        open_res = self.execute_order(symbol, target_decision, budget_usdt, leverage)
-        return f"FLIP SUCCESS: {open_res}"
-
-    def cancel_algo_orders(self, symbol):
-        """Cancels pending algo orders specifically for OKX."""
-        if self.exchange_id != 'okx': return
-        try:
-            market = self.exchange.market(symbol)
-            inst_id = market['id']
-            pending = self.exchange.private_get_trade_orders_algo_pending({
-                'instId': inst_id, 'ordType': 'conditional'
-            })
-            orders = pending.get('data', [])
-            cancel_list = [{'algoId': o['algoId'], 'instId': o['instId']} for o in orders]
-            if cancel_list:
-                return self.exchange.private_post_trade_cancel_algos(cancel_list)
-        except Exception as e:
-            logging.warning(f"[{self.exchange_id}] Cancel Algos error: {e}")
-
-    def sync_sl_tp(self, pos, tp_pct=0.3, sl_pct=0.2, tp_price=None, sl_price=None):
-        """Sets protective TP/SL orders. Supports pct or direct price overrides."""
-        if self.exchange_id != 'okx':
-            logging.info(f"[{self.exchange_id}] TP/SL skip (not implemented for this exchange yet)")
-            return "Skipped"
-
-        try:
-            symbol = pos['symbol']
-            side = pos['side'] # 'long' or 'short'
-            entry_price = float(pos['entryPrice'])
-            contracts = pos['contracts']
-
-            self.cancel_algo_orders(symbol)
-
-            if tp_price is None:
-                tp_price = entry_price * (1 + tp_pct) if side == 'long' else entry_price * (1 - tp_pct)
-            if sl_price is None:
-                sl_price = entry_price * (1 - sl_pct) if side == 'long' else entry_price * (1 + sl_pct)
-            
-            # Format prices according to exchange precision
-            tp_str = self.exchange.price_to_precision(symbol, tp_price)
-            sl_str = self.exchange.price_to_precision(symbol, sl_price)
-
-            params = {
-                'ordType': 'conditional'
-            }
-            
             if self.exchange_id == 'okx':
-                params['tdMode'] = pos.get('marginMode', 'cross')
-                # OKX V5: reduceOnly is for net mode only
-                if self.pos_mode == 'long_short_mode':
-                    params['posSide'] = side
-                else:
-                    params['reduceOnly'] = True
-            else:
-                params['reduceOnly'] = True
-
-            logging.info(f"[{self.exchange_id}] Syncing TP/SL for {symbol} ({side}). TP: {tp_str}, SL: {sl_str}")
-
-            # Take Profit (Market-Conditional)
-            # OKX via CCXT uses tpTriggerPx and tpOrdPx
-            self.exchange.create_order(
-                symbol=symbol, type='market', side='sell' if side == 'long' else 'buy',
-                amount=contracts, params={
-                    **params, 
-                    'tpTriggerPx': tp_str, 
-                    'tpOrdPx': '-1' # -1 means market order on trigger
-                }
-            )
-            # Stop Loss (Market-Conditional)
-            self.exchange.create_order(
-                symbol=symbol, type='market', side='sell' if side == 'long' else 'buy',
-                amount=contracts, params={
-                    **params, 
-                    'slTriggerPx': sl_str, 
-                    'slOrdPx': '-1'
-                }
-            )
-            return f"Synced (SL:{sl_str})"
+                inst_id = pos.get('info', {}).get('instId') or self.exchange.market(symbol)['id']
+                payload = {'instId': inst_id, 'mgnMode': pos.get('marginMode', 'cross')}
+                if pos.get('info', {}).get('posSide') in ['long', 'short']:
+                    payload['posSide'] = pos['info']['posSide']
+                res = await self.exchange.private_post_trade_close_position(payload)
+                if str(res.get('code')) == '0': return await self._verify_closure(symbol)
+            
+            side = 'sell' if pos.get('side') == 'long' else 'buy'
+            await self.exchange.create_market_order(symbol, side, float(pos['contracts']), {'reduceOnly': True})
+            return await self._verify_closure(symbol)
         except Exception as e:
-            logging.error(f"[{self.exchange_id}] TP/SL Error: {e}")
-            return str(e)
-# Initialize traders collection
-trader = None
-traders = {}
+            return f"FAILED: {str(e)[:50]}"
 
-def refresh_traders():
-    global traders, trader
-    logging.info(f"Trader System: Refreshing exchanges... Active: {config.ACTIVE_EXCHANGES}")
-    traders.clear()
-    for eid in config.ACTIVE_EXCHANGES:
+    async def _verify_closure(self, symbol):
+        for _ in range(5):
+            await asyncio.sleep(0.5)
+            if not await self.get_positions(target_symbol=symbol): return "CLOSED"
+        return "SENT (Pending)"
+
+    async def execute_flip(self, symbol, current_pos, target_decision, budget_usdt, leverage=3):
+        res = await self.close_position(current_pos)
+        if "CLOSED" not in res: return f"FLIP ABORTED: {res}"
+        await asyncio.sleep(1)
+        return await self.execute_order(symbol, target_decision, budget_usdt, leverage)
+
+    async def sync_sl_tp(self, pos, tp_pct=0.3, sl_pct=0.1):
+        if self.exchange_id != 'okx': return "Skipped"
         try:
-            traders[eid] = Trader(eid)
-        except Exception as e:
-            logging.error(f"Failed to initialize {eid}: {e}")
-    
-    # Legacy support
-    if traders:
-        trader = traders[config.ACTIVE_EXCHANGES[0]]
+            symbol, side = pos['symbol'], pos['side']
+            # Normalize pct: if AI returns 12.5 (meaning 12.5%), convert to 0.125
+            if tp_pct > 0.5: tp_pct = tp_pct / 100.0
+            if sl_pct > 0.5: sl_pct = sl_pct / 100.0
 
-# Initial call
-refresh_traders()
+            raw_entry = pos.get('entryPrice') or pos.get('info', {}).get('avgPx')
+            raw_contracts = pos.get('contracts', 0) or pos.get('info', {}).get('pos', 0)
+            
+            if not raw_entry or float(raw_contracts) == 0:
+                return "ERR: Position data incomplete"
+
+            entry_price, contracts = float(raw_entry), abs(float(raw_contracts))
+            
+            tp_price = entry_price * (1 + tp_pct) if side == 'long' else entry_price * (1 - tp_pct)
+            sl_price = entry_price * (1 - sl_pct) if side == 'long' else entry_price * (1 + sl_pct)
+            
+            p = {'tdMode': 'cross', 'ordType': 'conditional'}
+            if self.pos_mode == 'long_short_mode': p['posSide'] = side
+            else: p['reduceOnly'] = True
+
+            # TP
+            tp_px_str = self.exchange.price_to_precision(symbol, tp_price)
+            await self.exchange.create_order(symbol, 'market', 'sell' if side == 'long' else 'buy', contracts, params={**p, 'tpTriggerPx': tp_px_str, 'tpOrdPx': '-1'})
+            # SL
+            sl_px_str = self.exchange.price_to_precision(symbol, sl_price)
+            await self.exchange.create_order(symbol, 'market', 'sell' if side == 'long' else 'buy', contracts, params={**p, 'slTriggerPx': sl_px_str, 'slOrdPx': '-1'})
+            return "SYNCED"
+        except Exception as e:
+            logging.error(f"Sync SL/TP Error: {e}")
+            return "ERR"
+
+# Global Async Trader Manager
+traders: Dict[str, Trader] = {}
+
+class TraderProxy:
+    """A proxy that always points to the first active trader in the pool."""
+    def __getattr__(self, name):
+        if not traders:
+            raise RuntimeError("No active traders found. Call refresh_traders() first.")
+        # Return first available trader
+        return getattr(list(traders.values())[0], name)
+
+trader = TraderProxy()
+
+async def refresh_traders():
+    global traders
+    logging.info(f"🔄 ASYNC TRADER: Refreshing {config.ACTIVE_EXCHANGES}")
+    # Close old ones
+    for t in traders.values(): await t.close()
+    traders.clear()
+    # Init new ones in parallel
+    new_traders = [Trader(eid) for eid in config.ACTIVE_EXCHANGES]
+    await asyncio.gather(*[t.initialize() for t in new_traders])
+    for t in new_traders: traders[t.exchange_id] = t
+
+# Initial sync refresh (legacy support)
+# In true async app, this should be called by the event loop.

@@ -17,7 +17,7 @@ class MediaCoreOrchestrator:
     """
     async def process_new_wins(self):
         logging.info("📢 MEDIA CORE: Scanning for viral-worthy trades...")
-        wins = profit_scout.find_big_wins()
+        wins = await profit_scout.find_big_wins()
         
         if not wins:
             logging.info("📢 MEDIA CORE: No new major wins found.")

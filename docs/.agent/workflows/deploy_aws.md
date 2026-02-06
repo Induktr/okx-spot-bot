@@ -56,23 +56,11 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/etc/fstab
 ---
 
 ## 3.5. Маскировка IP (Cloudflare WARP)
-Обязательно для TikTok, чтобы избежать Shadow Ban от Amazon IP.
+Обязательно для TikTok, чтобы избежать Shadow Ban от Amazon IP. Используй готовый скрипт:
 
 ```bash
-# Добавляем репозиторий Cloudflare
-curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-warp.list
-
-# Установка
-sudo apt update && sudo apt install cloudflare-warp -y
-
-# Регистрация и настройка режима Proxy (чтобы не разорвать SSH соединение)
-warp-cli registration new
-warp-cli mode proxy
-warp-cli proxy port 40000
-warp-cli connect
-
-# Теперь в коде используем прокси: socks5://127.0.0.1:40000
+chmod +x src/scripts/setup_aws_masking.sh
+./src/scripts/setup_aws_masking.sh
 ```
 
 ---

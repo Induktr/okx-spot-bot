@@ -1,14 +1,39 @@
 <div id="tab-analytics" class="hidden space-y-6">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <!-- Profit -->
-        <div class="glass-panel p-6 border-blue-500/10 relative overflow-hidden">
-            <div class="absolute top-0 right-0 p-2 opacity-10">
-                <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 24 24"><path d="M11.5 2C6.81 2 3 5.81 3 10.5S6.81 19 11.5 19h.5v3c4.86-2.36 8-5.29 8-11.5C20 5.81 16.19 2 11.5 2zm1 14.5h-2v-2h2v2zm0-3.5h-2V7h2v6z"></path></svg>
-            </div>
-            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-2">Total Net Profit</p>
-            <h2 id="analytics-profit" class="text-3xl font-orbitron font-bold text-white">0.00 USDT</h2>
-            <p id="analytics-roi" class="text-xs font-bold mt-2 text-green-400">+0.00% ROI</p>
+        <div class="glass-panel p-4 border-blue-500/10 relative overflow-hidden">
+            <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mb-1">Net Profit</p>
+            <h2 id="analytics-profit" class="text-2xl font-orbitron font-bold text-white">0.00 USDT</h2>
+            <p id="analytics-roi" class="text-[10px] font-bold mt-1 text-green-400">+0.00% ROI</p>
         </div>
+        <!-- Risk Metrics -->
+        <div class="glass-panel p-4 border-orange-500/10 bg-orange-500/5">
+            <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mb-1">Risk Adjusted</p>
+            <div class="flex flex-col gap-1">
+                <div class="flex justify-between"><span class="text-[9px] text-gray-400">Calmar Ratio</span><span id="analytics-calmar" class="text-[10px] font-bold text-white">0.00</span></div>
+                <div class="flex justify-between"><span class="text-[9px] text-gray-400">Daily Vol</span><span id="analytics-vol" class="text-[10px] font-bold text-orange-400">0.00%</span></div>
+            </div>
+        </div>
+        <!-- Efficiency -->
+        <div class="glass-panel p-4 border-blue-500/10">
+            <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mb-1">Execution Quality</p>
+            <div class="flex flex-col gap-1">
+                <div class="flex justify-between"><span class="text-[9px] text-gray-400">Profit Factor</span><span id="analytics-profit-factor" class="text-[10px] font-bold text-green-400">0.00</span></div>
+                <div class="flex justify-between"><span class="text-[9px] text-gray-400">Recovery Factor</span><span id="analytics-recovery" class="text-[10px] font-bold text-blue-400">0.00</span></div>
+            </div>
+        </div>
+        <!-- System Health -->
+        <div id="health-card" class="glass-panel p-4 border-green-500/10 bg-green-500/5">
+            <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mb-1">System Vitals</p>
+            <div class="flex flex-col gap-1">
+                <div class="flex justify-between"><span class="text-[9px] text-gray-400">AI Uptime</span><span id="health-reliability" class="text-[10px] font-bold text-green-400">100%</span></div>
+                <div class="flex justify-between"><span class="text-[9px] text-gray-400">Latency</span><span id="health-latency" class="text-[10px] font-bold text-blue-400">0ms</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <!-- Initial -->
         <div class="glass-panel p-6 border-white/5">
             <div class="flex justify-between items-center mb-2">
@@ -23,23 +48,19 @@
                 </div>
             </div>
         </div>
-        <!-- Current -->
-        <div class="glass-panel p-6 border-white/5 relative overflow-hidden">
-            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-2">Current Equity</p>
-            <h2 id="analytics-current" class="text-xl font-orbitron font-bold text-blue-400">0.00 USDT</h2>
-            <div class="flex flex-col mt-2 gap-1">
-                <div class="flex justify-between items-center">
-                    <p id="analytics-drawdown" class="text-[9px] font-bold text-red-400 uppercase">Max Drawdown: 0%</p>
-                    <p id="analytics-peak" class="text-[9px] font-bold text-gray-600 uppercase">High: 0.00</p>
-                </div>
-            </div>
+        <!-- Groq Kaizen Insight -->
+        <div class="glass-panel p-6 border-blue-500/10 bg-blue-500/5 col-span-2">
+            <h3 class="text-[10px] font-bold uppercase text-blue-400 mb-3 tracking-widest flex items-center gap-2">
+                <span class="animate-pulse">🧠</span> Brain Self-Correction (Kaizen)
+            </h3>
+            <p id="kaizen-insight" class="text-xs text-blue-300/80 italic leading-relaxed">System is currently observing market patterns. Kaizen insight will appear after background Groq analysis session.</p>
         </div>
     </div>
     
     <!-- Large Chart Area -->
-    <div class="glass-panel p-6 h-[400px]">
+    <div class="glass-panel p-6 h-[350px]">
         <div class="flex justify-between items-center mb-6">
-            <h3 class="text-sm font-bold uppercase text-gray-400 tracking-widest">Growth Curve</h3>
+            <h3 class="text-sm font-bold uppercase text-gray-400 tracking-widest">Equity Growth Curve</h3>
             <button onclick="updatePerformanceChart()" class="text-[10px] text-blue-400 font-bold">[ REFRESH ]</button>
         </div>
         <div class="h-64">

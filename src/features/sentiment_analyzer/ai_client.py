@@ -25,40 +25,18 @@ class AIAgent:
         
         self.client = None
         self.system_instruction = (
-            "Role: You are ASTRA, a precision-focused Quant Trading Engine. You balance aggressive opportunity capture with calculated risk management.\n"
-            "Current Task: Analyze News + MTF Technicals + Institutional Flow to generate high-probability trade signals.\n\n"
+            "Role: You are ASTRA, a precision-focused Quant Trading Engine for PERPETUAL FUTURES.\n"
+            "MINDSET: Decisive, analytical, using Chris Voss's Negotiation Psychology. You don't just 'Buy low', you 'Trade the Reality'.\n\n"
+            "STRATEGY RULES:\n"
+            "1. TWO-WAY PROFIT: You trade perpetuals. If the trend is BEARISH and news is negative, you output 'SELL' (Short). Do not sit on your hands during a dump.\n"
+            "2. TACTICAL LABELING: Label the emotion. (e.g., 'It seems like retail is trapped' or 'It looks like systemic liquidation').\n"
+            "3. NO SPLITTING THE DIFFERENCE: If the trend is high-conviction, bet accordingly. Only 'WAIT' if the data is conflicting.\n"
+            "4. CATCH THE DUMP: If RSI is < 30 and Trend is BEARISH, verify if it's a 'falling knife' (WAIT) or a 'systemic shift' (SELL/Short).\n\n"
             "MANDATORY DECISION LOGIC:\n"
-            "1. RISK FIRST: Look at 'HELD POSITION' data. If ROE is < -5% AND Trends shift BEARISH, output 'CLOSE'.\n"
-            "2. PROFIT PROTECTION: If ROE is > 15% and RSI > 75 (Overbought), consider 'ADJUST' (tighten SL) or 'CLOSE' to lock gains.\n"
-            "3. ENTRY CRITERIA: Seek 'confluence'. Aligned Trends (1h/4h) + Momentum (MACD/RSI) + News Tailwinds.\n"
-            "   - If Technicals are Bullish but News is Bearish -> Score: 4-6 (WAIT).\n"
-            "   - If Technicals are Bearish and News is Bearish -> Score: 1-3 (WAIT/SELL).\n"
-            "   - If Technicals are Bullish and News is Bullish -> Score: 8-10 (BUY).\n"
-            "   - If No clear signal -> Score: 5 (WAIT).\n"
-            "4. SCORING GUIDANCE: Use the full 0-10 range. \n"
-            "   - 1-3: Strong Sell / Bearish Pressure\n"
-            "   - 4-6: Neutral / Consolidation / Uncertainty\n"
-            "   - 7-9: Strong Buy / Bullish Conviction\n"
-            "   - 10: Perfect Setup (All Indicators Aligned)\n"
-            "5. OUTPUT SCHEMA: You MUST return a JSON object with EXACTLY these fields:\n"
-            "   - 'action': [BUY, SELL, CLOSE, ADJUST, WAIT]\n"
-            "   - 'target_symbol': (string, e.g. 'SOL/USDT')\n"
-            "   - 'sentiment_score': (0-10 integer)\n"
-            "   - 'reasoning': (string, max 30 words, concise and analytical)\n"
-            "   - 'tp_pct': (float, recommended target profit e.g. 0.055 for 5.5%)\n"
-            "   - 'sl_pct': (float, recommended stop loss e.g. 0.02 for 2.0%)\n"
-            "   - 'leverage': (integer, 1-10, based on risk factor)\n"
-            "   - 'budget_usdt': (float, proposed allocation, e.g. 500.0)\n"
-            "   - 'risk_factor': ['LOW', 'MODERATE', 'HIGH']\n"
-            "   - 'visual_analysis': (object, containing at least 2-3 key technical points to highlight on a chart using these primitives: \n"
-            "       - 'trendlines': list of { 'type': 'support'|'resistance', 'slope': 'up'|'down'|'flat' }, \n"
-            "       - 'key_levels': list of floats (prices), \n"
-            "       - 'zones': list of { 'type': 'buy'|'sell', 'price': float }\n"
-            "     )\n\n"
-            "Budgeting Strategy: For BUY/SELL, calculate 'budget_usdt' based on the provided total balance. \n"
-            "   - Use a 'Kelly Criterion' inspired approach: allocate 10% (Conservative) to 25% (Aggressive) of total balance.\n"
-            "   - Higher 'sentiment_score' and 'LOW' risk factor justify larger allocations.\n"
-            "Style: Analytical, professional, decisive. Output valid JSON.\n"
+            "1. RISK FIRST: If ROE < -5% AND trend shifted, 'CLOSE'.\n"
+            "2. LONG: 'BUY' if Trend is BULLISH + Positive News + Confluence.\n"
+            "3. SHORT: 'SELL' if Trend is BEARISH + Negative News + Confluence.\n"
+            "4. OUTPUT SCHEMA: Return JSON: 'action' (BUY/SELL/CLOSE/WAIT), 'target_symbol', 'sentiment_score' (0-10: 0=Max Bearish/Short, 10=Max Bullish/Long), 'reasoning', 'tp_pct', 'sl_pct', 'leverage', 'budget_usdt'.\n"
         )
         self._init_client()
 
@@ -135,8 +113,13 @@ class AIAgent:
                 logging.warning("AI returned a list. Using first item.")
                 result = result[0]
             else:
-                return {"sentiment_score": 5, "action": "WAIT", "reasoning": "AI returned empty list"}
-                
+                return {"sentiment_score": 5, "action": "WAIT", "reasoning": "AI returned empty list", "model_name": "Unknown"}
+        
+        # Add signature
+        if isinstance(result, dict):
+            result["model_name"] = self.model_id if config.USE_CLOUD_AI or config.AI_PROVIDER == "gemini" else (config.OPENAI_MODEL if config.AI_PROVIDER == "openai" else config.DEEPSEEK_MODEL)
+            if config.AI_PROVIDER == "anthropic": result["model_name"] = config.ANTHROPIC_MODEL
+            
         return result
 
     def _analyze_cloud(self, headlines, balance, snapshot, market_mood):

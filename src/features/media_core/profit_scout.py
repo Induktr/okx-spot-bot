@@ -30,7 +30,7 @@ class ProfitScout:
         with open(self.processed_trades_file, "w") as f:
             json.dump(processed, f)
 
-    def find_big_wins(self):
+    async def find_big_wins(self):
         """
         Scans all exchanges for trades with ROI > threshold.
         Extracts: Symbol, Entry Price, Exit Price, Profit, Timestamp.
@@ -40,7 +40,7 @@ class ProfitScout:
 
         for eid, t in traders.items():
             try:
-                history = t.get_history(limit=50)
+                history = await t.get_history(limit=50)
                 for trade in history:
                     # OKX/Binance specific PnL check
                     # We look for trades that have positive PnL and match our ROI criteria

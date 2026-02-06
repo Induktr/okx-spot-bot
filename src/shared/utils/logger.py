@@ -50,6 +50,7 @@ class Scribe:
 ## Cycle Entry: {timestamp}
 - **Sentiment Score:** {score}/10
 - **Action Strategy:** {emoji} {action}
+- **AI Brain Model:** `{sentiment_data.get('model_name', 'Gemini-Flash')}`
 - **Token Usage Details:**
     - **Intake Tokens:** {prompt_tokens} (The size of news + history)
     - **Reflection Tokens:** {output_tokens} (The complexity of AI thinking)
