@@ -2,6 +2,7 @@ from google import genai
 from google.genai import types
 import json
 import logging
+import requests
 from src.app.config import config
 from src.shared.utils.token_guard import token_guard
 
@@ -11,9 +12,14 @@ class AIAgent:
     Integrates with Google Gemini via the new google-genai SDK.
     """
     def __init__(self):
-        # Key Pool Setup
+        # 1. Local Key Pool Setup - Reload explicitly to catch new files
+        config.load_settings()
         self.keys = config.GEMINI_KEYS if config.GEMINI_KEYS else ([config.GEMINI_API_KEY] if config.GEMINI_API_KEY else [])
         
+        # 2. Remote Key Vault Sync (Fallback/Supplementary)
+        if not self.keys or len(self.keys) < 2:
+            self._fetch_remote_keys()
+
         if not self.keys:
             logging.critical("❌ NO GEMINI API KEYS FOUND! AI Analysis will fail. Please check your .env or admin_keys.json")
         
@@ -25,18 +31,30 @@ class AIAgent:
         
         self.client = None
         self.system_instruction = (
-            "Role: You are ASTRA, a precision-focused Quant Trading Engine for PERPETUAL FUTURES.\n"
-            "MINDSET: Decisive, analytical, using Chris Voss's Negotiation Psychology. You don't just 'Buy low', you 'Trade the Reality'.\n\n"
-            "STRATEGY RULES:\n"
-            "1. TWO-WAY PROFIT: You trade perpetuals. If the trend is BEARISH and news is negative, you output 'SELL' (Short). Do not sit on your hands during a dump.\n"
-            "2. TACTICAL LABELING: Label the emotion. (e.g., 'It seems like retail is trapped' or 'It looks like systemic liquidation').\n"
-            "3. NO SPLITTING THE DIFFERENCE: If the trend is high-conviction, bet accordingly. Only 'WAIT' if the data is conflicting.\n"
-            "4. CATCH THE DUMP: If RSI is < 30 and Trend is BEARISH, verify if it's a 'falling knife' (WAIT) or a 'systemic shift' (SELL/Short).\n\n"
-            "MANDATORY DECISION LOGIC:\n"
-            "1. RISK FIRST: If ROE < -5% AND trend shifted, 'CLOSE'.\n"
-            "2. LONG: 'BUY' if Trend is BULLISH + Positive News + Confluence.\n"
-            "3. SHORT: 'SELL' if Trend is BEARISH + Negative News + Confluence.\n"
-            "4. OUTPUT SCHEMA: Return JSON: 'action' (BUY/SELL/CLOSE/WAIT), 'target_symbol', 'sentiment_score' (0-10: 0=Max Bearish/Short, 10=Max Bullish/Long), 'reasoning', 'tp_pct', 'sl_pct', 'leverage', 'budget_usdt'.\n"
+            "Role: You are A.S.T.R.A. v1.5 – an Elite Architect & FBI Lead Negotiator. You analyze markets through the CORTEX Multi-Layered Protocol & Socratic Dialogue.\n\n"
+            "HIERARCHICAL REASONING PROTOCOL (CORTEX):\n"
+            "LEVEL 1: MACRO-SENTINEL (Anatomy & Mission)\n"
+            "- Question: 'What is this market environment?' (Identify: Systemic Panic, Accumulation, parabolic Run).\n"
+            "- Mission: 'What is our goal here?' (Extraction of profit vs. Capital Preservation).\n"
+            "- 3 KEY WORDS: Define the market state in exactly 3 precision words.\n\n"
+            "LEVEL 2: TREND-COMMANDER (Parts & Interaction)\n"
+            "- Analyze Parts: ADX (Strength), EMA (Direction), and **Hurst Exponent** (Persistence).\n"
+            "- Hurst Logic: H > 0.6 = Persistence (Trust the trend); H < 0.4 = Anti-persistence (Mean Reverting/Choppy).\n"
+            "- Interaction: How does the Macro state interact with the Trend? (e.g., 'Hurst 0.8 in a Bullish Macro').\n\n"
+            "LEVEL 3: TACTICAL-OPERATIVE (Point of Entry)\n"
+            "- Analyze RSI, MACD Histogram, Bollinger Bands, and **Fisher Transform** (Gaussian Signal).\n"
+            "- Fisher Logic: Fisher > 1.5 (Top reversal); Fisher < -1.5 (Bottom reversal); 0-crossing = Momentum shift.\n\n"
+            "LEVEL 4: ELITE NEGOTIATOR (The Deal)\n"
+            "- Final Decision: No 10/10 deal = No action. Conviction < 9.5 = WAIT.\n"
+            "- Calibration: 'Why might I be wrong?' and 'How does this survive a 15% flash crash?'.\n\n"
+            "TECHNICAL DOCTRINE:\n"
+            "1. NO BULLISH BIAS: BUY is FORBIDDEN if price < 1h EMA or ADX < 20 or **Hurst < 0.55** (Random/Choppy).\n"
+            "2. TWO-WAY PROFIT: HUNT for Short (SELL) deals in bearish trends (Price < 1h EMA) if Hurst > 0.55.\n\n"
+            "MANDATORY SCORE LOGIC:\n"
+            "- conviction_score 10.0: Elite FBI-grade setup. Action: BUY or SELL.\n"
+            "- conviction_score 0.0-9.4: Uncertain or risky. Action MUST be WAIT.\n\n"
+            "OUTPUT SCHEMA (JSON):\n"
+            "{'action': 'BUY/SELL/CLOSE/WAIT', 'target_symbol': 'str', 'conviction_score': float, 'reasoning': (max 50 words) 'CORTEX Analysis: [Macro state] + [3 Key Words] + [Trend/Parts interaction] + [Final Negotiator Verdict]', 'tp_pct': float, 'sl_pct': float, 'leverage': int, 'budget_usdt': float}\n"
         )
         self._init_client()
 
@@ -54,6 +72,35 @@ class AIAgent:
             self.model_id = config.GEMINI_MODELS[0]
             self._init_client()
             logging.info(f"🔄 Priority Reset: Starting cycle with primary model {self.model_id}")
+
+    def _fetch_remote_keys(self):
+        """Fetches a pool of API keys from the authorized ASTRA cloud endpoint."""
+        try:
+            # Reconstruct the keys endpoint from the AI Node address
+            if not config.CLOUD_AI_NODES:
+                return False
+                
+            base_url = config.CLOUD_AI_NODES[0].replace("/v1/analyze", "")
+            keys_url = f"{base_url}/v1/vault/gemini"
+            
+            logging.info(f"🔄 VAULT: Requesting key list from {keys_url}...")
+            response = requests.get(
+                keys_url,
+                headers={"X-ASTRA-TOKEN": config.CLOUD_AI_TOKEN},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                remote_keys = response.json().get("keys", [])
+                if remote_keys:
+                    self.keys = remote_keys
+                    logging.info(f"✅ VAULT: Successfully loaded {len(self.keys)} remote API keys.")
+                    return True
+            else:
+                logging.warning(f"⚠️ VAULT: server returned {response.status_code}")
+        except Exception as e:
+            logging.error(f"⚠️ VAULT: Failed to fetch remote keys: {e}")
+        return False
 
     def _rotate_model(self):
         """Rotate to the next model in the pool to bypass rate limits."""
@@ -83,29 +130,40 @@ class AIAgent:
         
         # If we cycled back to the first key, ALL combinations are exhausted
         if self.current_key_index == 0:
-            logging.error("❌ ALL KEYS AND MODELS EXHAUSTED. Need to wait or add more resources.")
-            return False
+            logging.warning("⚠️ All local keys exhausted. Attempting to refresh Vault from server...")
+            if self._fetch_remote_keys():
+                # Successfully fetched new keys, reset index and try the first one
+                self.current_key_index = 0
+                self._init_client()
+                return True
+            else:
+                logging.error("❌ ALL KEYS AND MODELS EXHAUSTED. Need to wait or add more resources.")
+                return False
         return True
 
 
-    def analyze_news(self, headlines: str, balance: float, snapshot: str, market_mood: str = "Unknown") -> dict:
+    def analyze_news(self, headlines: str, balance: float, snapshot: str, market_mood: str = "Unknown", **kwargs) -> dict:
         """
         Routes the analysis request to the selected AI Provider.
         """
         provider = config.AI_PROVIDER
         logging.info(f"AI: Using Brain Provider [{provider.upper()}]")
         
+        whale_data = kwargs.get('whale_data', "")
+
+        blackout_active = kwargs.get('blackout_active', False)
+
         # Cloud Override
         if config.USE_CLOUD_AI:
-            result = self._analyze_cloud(headlines, balance, snapshot, market_mood)
+            result = self._analyze_cloud(headlines, balance, snapshot, whale_data, market_mood, blackout_active)
         elif provider == "openai" or provider == "deepseek":
-            result = self._analyze_openai_compatible(headlines, balance, snapshot, market_mood)
+            result = self._analyze_openai_compatible(headlines, balance, snapshot, whale_data, market_mood, blackout_active)
         elif provider == "anthropic":
-            result = self._analyze_anthropic(headlines, balance, snapshot, market_mood)
+            result = self._analyze_anthropic(headlines, balance, snapshot, whale_data, market_mood, blackout_active)
         else:
             # Force reset to primary model at the start of a new analysis cycle
             self._reset_to_primary()
-            result = self._analyze_gemini(headlines, balance, snapshot, market_mood)
+            result = self._analyze_gemini(headlines, balance, snapshot, whale_data, market_mood, blackout_active)
             
         # SAFETY FIX: If AI returns a list (e.g. [ {..} ]), take the first item
         if isinstance(result, list):
@@ -122,11 +180,11 @@ class AIAgent:
             
         return result
 
-    def _analyze_cloud(self, headlines, balance, snapshot, market_mood):
+    def _analyze_cloud(self, headlines, balance, snapshot, whale_data, market_mood, blackout_active=False):
         # ... Cloud Logic (Same as before) ...
         import requests
         try:
-            prompt = self._build_prompt(headlines, balance, snapshot, market_mood)
+            prompt = self._build_prompt(headlines, balance, snapshot, whale_data, market_mood, blackout_active)
             response = requests.post(
                 config.CLOUD_AI_NODES[0], # Using first node for now
                 headers={"X-ASTRA-TOKEN": config.CLOUD_AI_TOKEN},
@@ -142,19 +200,21 @@ class AIAgent:
         except Exception as e:
             logging.error(f"⚠️ Cloud Brain Error: {e}")
             logging.info("🔄 Switching to LOCAL Brain (Backup Mode)...")
-            return self._analyze_gemini(headlines, balance, snapshot, market_mood)
+            return self._analyze_gemini(headlines, balance, snapshot, whale_data, market_mood, blackout_active)
 
-    def _build_prompt(self, headlines, balance, snapshot, market_mood):
+    def _build_prompt(self, headlines, balance, snapshot, whale_data, market_mood, blackout_active=False):
+        blackout_notice = "\n⚠️ BLACKOUT MODE ACTIVE: High-impact macro event imminent. New entries are BLOCKED. You are ONLY allowed to CLOSE existing loss-making or high-risk positions. Focus on Safe-Exit.\n" if blackout_active else ""
+        
         return (
-            f"--- ACCOUNT BALANCE ---\n{balance} USDT\n\n"
-            f"--- GLOBAL MARKET MOOD ---\n{market_mood}\n\n"
-            f"--- MARKET SNAPSHOT ---\n{snapshot}\n\n"
-            f"--- LATEST NEWS ---\n{headlines}\n\n"
-            "Review the snapshot and news. Pick the best candidate or manage current positions. "
-            "Return JSON. IMPORTANT: 'reasoning' MUST be a CONCISE (max 30 words) tactical justification citing RSI and Trend."
+            f"--- ACCOUNT BALANCE ---\n{balance:.2f} USDT\n\n"
+            f"--- SNAPSHOT ---\n{snapshot}\n\n"
+            f"--- ON-CHAIN WHALE SENTINEL ---\n{whale_data}\n\n"
+            f"--- NEWS ---\n{headlines}\n\n"
+            f"{blackout_notice}"
+            "TASK: Decide action. Reasoning MUST be concise but thorough (max 200 words), citing multi-timeframe trends (15m/1h Confluence), RSI and WHALE DATA."
         )
 
-    def _analyze_openai_compatible(self, headlines, balance, snapshot, market_mood):
+    def _analyze_openai_compatible(self, headlines, balance, snapshot, whale_data, market_mood, blackout_active=False):
         from openai import OpenAI
         
         # Select Key & Base URL
@@ -170,7 +230,7 @@ class AIAgent:
                 model=model,
                 messages=[
                     {"role": "system", "content": self.system_instruction},
-                    {"role": "user", "content": self._build_prompt(headlines, balance, snapshot, market_mood)}
+                    {"role": "user", "content": self._build_prompt(headlines, balance, snapshot, whale_data, market_mood, blackout_active)}
                 ],
                 response_format={ "type": "json_object" }
             )
@@ -179,7 +239,7 @@ class AIAgent:
             logging.error(f"OpenAI/DeepSeek Error: {e}")
             return {"sentiment_score": 5, "action": "WAIT", "reasoning": str(e)}
 
-    def _analyze_anthropic(self, headlines, balance, snapshot, market_mood):
+    def _analyze_anthropic(self, headlines, balance, snapshot, whale_data, market_mood, blackout_active=False):
         import anthropic
         client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
         
@@ -189,7 +249,7 @@ class AIAgent:
                 max_tokens=1024,
                 system=self.system_instruction,
                 messages=[
-                    {"role": "user", "content": self._build_prompt(headlines, balance, snapshot, market_mood)}
+                    {"role": "user", "content": self._build_prompt(headlines, balance, snapshot, whale_data, market_mood, blackout_active)}
                 ]
             )
             return json.loads(message.content[0].text)
@@ -197,15 +257,16 @@ class AIAgent:
             logging.error(f"Anthropic Error: {e}")
             return {"sentiment_score": 5, "action": "WAIT", "reasoning": str(e)}
 
-    def _analyze_gemini(self, headlines: str, balance: float, snapshot: str, market_mood: str = "Unknown") -> dict:
+    def _analyze_gemini(self, headlines: str, balance: float, snapshot: str, whale_data: str = "", market_mood: str = "Unknown", blackout_active=False) -> dict:
         """
         Original Gemini Logic with Key Rotation
         """
         token_guard.wait_if_needed()
         
-        prompt = self._build_prompt(headlines, balance, snapshot, market_mood)
+        prompt = self._build_prompt(headlines, balance, snapshot, whale_data, market_mood, blackout_active)
 
-        max_retries = len(config.GEMINI_MODELS)  # Try all models before giving up
+        # Try ALL combinations of Models * Keys before giving up
+        max_retries = len(config.GEMINI_MODELS) * len(self.keys)
         for attempt in range(max_retries):
             try:
                 response = self.client.models.generate_content(
@@ -236,37 +297,6 @@ class AIAgent:
         
         return {"target_symbol": "NONE", "sentiment_score": 5, "action": "WAIT", "reasoning": "AI unavailable: All Gemini models exhausted."}
 
-    async def analyze_emergency_reversal(self, context: str) -> dict:
-        """
-        Specialized Ultra-Fast Reversal Analysis via Groq.
-        Used by RiskManager to decide if an emergency liquidation is mandatory or if we should hold.
-        """
-        if not config.GROQ_API_KEY:
-            logging.warning("⚠️ No Groq API Key! Falling back to 'Mindless' closure.")
-            return {"reversal_confirmed": True, "reasoning": "No Smart Guard configured."}
-
-        from openai import AsyncOpenAI
-        client = AsyncOpenAI(api_key=config.GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
-        
-        system_msg = (
-            "Role: You are the ASTRA smart-emergency guard. Your job is to decide if we should LIQUIDATE all positions or HOLD.\n"
-            "CONTEXT: Equity drawdown limit reached. You must verify if the market trend has truly reversed against our positions.\n"
-            "OUTPUT: Return ONLY a JSON object with 'reversal_confirmed' (bool) and 'reasoning' (max 20 words)."
-        )
-
-        try:
-            response = await client.chat.completions.create(
-                model=config.GROQ_MODEL,
-                messages=[
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": f"MARKET CONTEXT:\n{context}"}
-                ],
-                response_format={ "type": "json_object" }
-            )
-            return json.loads(response.choices[0].message.content)
-        except Exception as e:
-            logging.error(f"Groq Emergency Error: {e}")
-            return {"reversal_confirmed": True, "reasoning": f"Error: {e}"}
 
 # Initialize AI client
 ai_client = AIAgent()

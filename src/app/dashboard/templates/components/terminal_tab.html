@@ -1,19 +1,64 @@
-<div id="tab-chart" class="hidden h-[700px] glass-panel border-blue-500/10 overflow-hidden relative">
+<div id="tab-chart" class="hidden h-[700px] glass-panel border-blue-500/10 overflow-hidden relative group">
+    <!-- TACTICAL HUD OVERLAY (AI Dymanic Drawing) -->
+    <div id="ai-hud-overlay" class="absolute inset-0 z-10 pointer-events-none opacity-0 transition-opacity duration-1000 border-2 border-transparent">
+        <!-- Scanning Line Animation -->
+        <div id="hud-scanner" class="absolute top-0 left-0 w-full h-[2px] bg-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.5)] animate-scan"></div>
+        
+        <!-- Corner Data Blocks -->
+        <div class="absolute top-4 left-4 space-y-2">
+            <div class="glass-panel p-2 border-blue-500/30 bg-black/60 backdrop-blur-md">
+                <p class="text-[9px] text-blue-400 font-bold tracking-widest uppercase">Mission Matrix</p>
+                <p id="hud-mission" class="text-[11px] text-white font-orbitron">SCANNING...</p>
+            </div>
+            <div id="hud-keywords" class="flex gap-2">
+                <!-- Keywords injected here -->
+            </div>
+        </div>
+
+        <div class="absolute top-4 right-4 text-right">
+            <div class="glass-panel p-2 border-red-500/30 bg-black/60 backdrop-blur-md">
+                <p class="text-[9px] text-red-400 font-bold tracking-widest uppercase">Target Execution</p>
+                <p id="hud-target-symbol" class="text-xl text-white font-orbitron leading-none">---</p>
+            </div>
+        </div>
+
+        <!-- AI Target Price Markers (Simulated lines) -->
+        <div id="hud-tp-marker" class="absolute right-0 w-32 border-b border-dashed border-green-500/50 flex items-end justify-end transition-all duration-1000" style="top: 30%">
+             <span class="bg-green-500/20 text-green-400 text-[10px] px-1 font-bold mb-0.5">AI TARGET TP</span>
+        </div>
+        <div id="hud-sl-marker" class="absolute right-0 w-32 border-b border-dashed border-red-500/50 flex items-start justify-end transition-all duration-1000" style="top: 70%">
+             <span class="bg-red-500/20 text-red-400 text-[10px] px-1 font-bold mt-0.5">AI GUARD SL</span>
+        </div>
+    </div>
+
+    <!-- The actual TV Widget -->
     <div id="tradingview_dashboard" style="height:100%;width:100%"></div>
     <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
     <script type="text/javascript">
-    new TradingView.widget({
-        "autosize": true,
-        "symbol": "OKX:BTCUSDT.P",
-        "interval": "60",
-        "timezone": "Etc/UTC",
-        "theme": "dark",
-        "style": "1",
-        "locale": "en",
-        "backgroundColor": "#05070a",
-        "gridColor": "rgba(255, 255, 255, 0.05)",
-        "hide_top_toolbar": false,
-        "container_id": "tradingview_dashboard"
-    });
+    function initTVWidget(symbol = "OKX:BTCUSDT.P") {
+        new TradingView.widget({
+            "autosize": true,
+            "symbol": symbol,
+            "interval": "15",
+            "timezone": "Etc/UTC",
+            "theme": "dark",
+            "style": "1",
+            "locale": "en",
+            "backgroundColor": "#05070a",
+            "gridColor": "rgba(255, 255, 255, 0.05)",
+            "hide_top_toolbar": false,
+            "save_image": false,
+            "studies": [
+                "RelativeStrengthIndex@tv-basicstudies",
+                "EMA@tv-basicstudies",
+                "EMA@tv-basicstudies",
+                "BollingerBands@tv-basicstudies",
+                "MACD@tv-basicstudies",
+                "AverageDirectionalIndex@tv-basicstudies"
+            ],
+            "container_id": "tradingview_dashboard"
+        });
+    }
+    initTVWidget();
     </script>
 </div>

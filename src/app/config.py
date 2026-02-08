@@ -19,7 +19,6 @@ class Config(BaseSettings):
     GEMINI_MODELS: list[str] = [
         "gemini-3-flash-preview",
         "gemini-2.0-flash",
-        "gemini-1.5-flash",
     ]
     GEMINI_RPM_LIMIT: int = 15
     
@@ -29,9 +28,9 @@ class Config(BaseSettings):
     TRADING_DAYS: list[int] = [0, 1, 2, 3, 4] # Mon-Fri by default (0-6)
     TRADING_START_HOUR: int = 0 # 00:00
     TRADING_END_HOUR: int = 24 # 24:00 (Full Day)
-    CYCLE_INTERVAL_MINUTES: int = 60 # Default to 1 hour
+    CYCLE_INTERVAL_MINUTES: int = 60 # Default to 5 minutes for faster reaction
     HEADLESS_MODE: bool = False # For server deployments (TikTok/Browser)
-
+    
     # AI Provider Selection: 'gemini', 'openai', 'deepseek', 'anthropic'
     AI_PROVIDER: str = "gemini"
 
@@ -51,13 +50,17 @@ class Config(BaseSettings):
     ANTHROPIC_API_KEY: str = Field("", env="ANTHROPIC_API_KEY")
     ANTHROPIC_MODEL: str = "claude-3-5-sonnet-20241022"
     
-    # Cloud AI Settings (Multi-Node Cluster Ready)
-    # Architecture supports adding multiple IPs for redundancy
-    USE_CLOUD_AI: bool = True
+    # Cloud AI Settings (Backup redundant nodes)
+    USE_CLOUD_AI: bool = False
     CLOUD_AI_NODES: list[str] = [
         "http://16.170.204.53:8080/v1/analyze" 
     ]
     CLOUD_AI_TOKEN: str = "ASTRA-PRO-CLOUD-2026-SECURE"
+    
+    # --- MONETIZATION & BROKERAGE (Stage 20) ---
+    # These IDs allow the creator to earn rebates from exchange commissions.
+    OKX_BROKER_ID: str = Field(os.getenv("OKX_BROKER_ID", ""), env="OKX_BROKER_ID")
+    BINANCE_LINK_ID: str = Field(os.getenv("BINANCE_LINK_ID", ""), env="BINANCE_LINK_ID")
     
     # OKX API
     OKX_API_KEY: str = Field("", env="OKX_API_KEY")
@@ -79,10 +82,24 @@ class Config(BaseSettings):
     MIN_LEVERAGE: int = 1
     MAX_LEVERAGE: int = 10
     VOLATILITY_THRESHOLD: float = 0.05 # 5% move in 1h triggers risk reduction
+    
+    # Trailing Stop-Loss Settings (v1.5.1)
+    TRAILING_STOP_ACTIVE: bool = True
+    TRAILING_STOP_CALLBACK_PCT: float = 0.02 # Start trailing after 2% profit
+    TRAILING_STOP_DISTANCE_PCT: float = 0.01 # Keep 1% distance from peak
 
     # Feature 6: Black Swan Insurance
     EMERGENCY_WORDS: list[str] = ["hack", "exploit", "sec ban", "bankruptcy", "scam", "depeg", "halt", "insolvent"]
     VOLATILITY_PANIC_THRESHOLD: float = 0.15 # 15% drop triggers emergency exit
+    CIRCUIT_BREAKER_THRESHOLD: float = 0.04 # 4% BTC move in 1h pauses new entries
+    
+    # Loss-Streak / Equity Curve (Idea 2)
+    MAX_LOSS_STREAK: int = 3 # Pause or slow down after 3 consecutive losses
+    COOLDOWN_PERIOD_HOURS: int = 4 # How long to wait after a loss streak
+    DYNAMIC_SIZING_ACTIVE: bool = True # Scale position size by conviction score
+    
+    # Whale Alert API (v1.7)
+    WHALE_ALERT_API_KEY: str = Field("", env="WHALE_ALERT_API_KEY")
 
     # Feature 2: On-Chain Sentinel
     WHALE_MOVE_THRESHOLD: float = 10000000 # $10M+ move triggers alert/caution
@@ -111,7 +128,7 @@ class Config(BaseSettings):
                 self.AI_PROVIDER = data.get("ai_provider", "gemini")
                 self.BOT_ACTIVE = data.get("bot_active", True)
                 self.FORCE_CYCLE = data.get("force_cycle", False)
-                self.CYCLE_INTERVAL_MINUTES = data.get("cycle_interval", 60)
+                self.CYCLE_INTERVAL_MINUTES = data.get("cycle_interval", 5)
                 self.HEADLESS_MODE = data.get("headless_mode", True)
                 self.TRADING_DAYS = data.get("trading_days", [0, 1, 2, 3, 4])
                 self.TRADING_START_HOUR = data.get("trading_start_hour", 0)
@@ -138,6 +155,7 @@ class Config(BaseSettings):
                 self.INWORLD_API_KEY = data.get("inworld_api_key", self.INWORLD_API_KEY)
                 self.INWORLD_VOICE_ID = data.get("inworld_voice_id", self.INWORLD_VOICE_ID)
                 self.TIKTOK_PROXY = data.get("tiktok_proxy", self.TIKTOK_PROXY)
+                self.WHALE_ALERT_API_KEY = data.get("whale_alert_key", self.WHALE_ALERT_API_KEY)
         except Exception:
             self.ACTIVE_EXCHANGES = ["okx"]
             self.SANDBOX_MODES = {"okx": True, "binance": False, "bybit": False}
@@ -173,7 +191,8 @@ class Config(BaseSettings):
                 "tg_signals_active": self.TG_SIGNALS_ACTIVE,
                 "inworld_api_key": self.INWORLD_API_KEY,
                 "inworld_voice_id": self.INWORLD_VOICE_ID,
-                "tiktok_proxy": self.TIKTOK_PROXY
+                "tiktok_proxy": self.TIKTOK_PROXY,
+                "whale_alert_key": self.WHALE_ALERT_API_KEY
             }, f, indent=4)
     
     # Trading Settings
@@ -252,4 +271,3 @@ class Config(BaseSettings):
 config = Config()
 # Perform parallel startup load
 config.load_all_configs()
-

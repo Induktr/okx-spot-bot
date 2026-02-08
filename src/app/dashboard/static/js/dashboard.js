@@ -19,7 +19,8 @@ let dashboardState = {
     isTradingDay: null,
     tradingDays: [],
     lastServerStartHour: null,
-    lastServerEndHour: null
+    lastServerEndHour: null,
+    lastChartSymbol: null
 };
 
 async function updateDashboard() {
@@ -40,8 +41,9 @@ async function updateDashboard() {
             renderSymbolsTask(data.symbols, data.hot_symbols),
             renderPositionsTask(data.positions),
             renderLogsTask(data.entries, data.bot_active),
-            renderAnalyticsTask(data.analytics),
+            renderAnalyticsTask(data),
             updateChartsTask(data.entries),
+            updateTacticalHUD(data.entries),
             updateScheduleUI(data.trading_days, data.is_trading_day, data.trading_start_hour || 0, data.trading_end_hour || 24)
         ].map(t => t.catch(e => console.warn("Task error:", e))));
 
@@ -153,12 +155,17 @@ async function renderPositionsTask(positions) {
     if (!container) return;
 
     container.innerHTML = positions.map(p => `
-        <div class="flex justify-between items-center text-sm bg-white/5 p-3 rounded border border-white/5">
+        <div class="flex justify-between items-center text-sm bg-white/5 p-3 rounded border border-white/5 group">
             <div class="flex flex-col">
                 <span class="text-xs font-bold text-gray-400 uppercase tracking-tight">${p.symbol.split('/')[0]}</span>
                 <span class="${p.side === 'long' ? 'text-green-400' : 'text-red-400'} text-[10px] font-bold uppercase">${p.side} ${p.leverage}x</span>
             </div>
-            <span class="${p.percentage >= 0 ? 'text-green-500' : 'text-red-500'} font-orbitron font-bold">${p.percentage.toFixed(2)}%</span>
+            <div class="flex items-center gap-3">
+                <span class="${p.percentage >= 0 ? 'text-green-500' : 'text-red-500'} font-orbitron font-bold">${p.percentage.toFixed(2)}%</span>
+                <button onclick="downloadPNLCard('${p.symbol}')" class="opacity-0 group-hover:opacity-100 text-blue-400 hover:text-white transition-all p-1" title="Share PNL Card">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                </button>
+            </div>
         </div>`).join('') || '<p class="text-xs text-gray-600 italic px-2">No active exposure</p>';
     dashboardState.positionsHash = currentHash;
 }
@@ -217,13 +224,20 @@ async function renderAnalyticsTask(data) {
     safeSetText('analytics-winrate', `Win Rate: ${a.win_rate}%`);
     safeSetText('analytics-start-date', `Started on ${new Date(a.start_time).toLocaleDateString()}`);
 
-    // System Health
+    // System Health & Vitals
     if (h) {
-        safeSetText('health-reliability', `${h.ai_reliability_pct}%`);
-        safeSetText('health-latency', `${Math.round(h.avg_cycle_latency_ms)}ms`);
+        // AI Reliability: Show 'WAITING' if no calls made yet
+        const reliabilityText = h.ai_total_calls > 0 ? `${h.ai_reliability_pct}%` : 'SCANNING...';
+        safeSetText('health-reliability', reliabilityText);
+        
+        // Cycle Latency: Show Dashboard Latency if Astra hasn't run yet
+        const latencyVal = h.avg_cycle_latency_ms > 0 ? `${Math.round(h.avg_cycle_latency_ms)}ms` : `${a.request_latency || 0}ms*`;
+        safeSetText('health-latency', latencyVal);
+        
         const hCard = document.getElementById('health-card');
         if (hCard) {
-            hCard.className = `glass-panel p-4 border-${h.status === 'HEALTHY' ? 'green' : (h.status === 'WARNING' ? 'orange' : 'red')}-500/10 bg-${h.status === 'HEALTHY' ? 'green' : (h.status === 'WARNING' ? 'orange' : 'red')}-500/5 transition-all`;
+            const status = h.status || 'HEALTHY';
+            hCard.className = `glass-panel p-4 border-${status === 'HEALTHY' ? 'green' : (status === 'WARNING' ? 'orange' : 'red')}-500/10 bg-${status === 'HEALTHY' ? 'green' : (status === 'WARNING' ? 'orange' : 'red')}-500/5 transition-all`;
         }
     }
 
@@ -421,6 +435,10 @@ async function updatePerformanceChart() {
 
 // Exports
 function downloadLatestMD() { window.location.href = '/api/reports/download/md'; }
+function downloadPNLCard(symbol) {
+    const cleanSym = encodeURIComponent(symbol);
+    window.location.href = `/api/generate_pnl_card?symbol=${cleanSym}`;
+}
 async function exportToPDF() {
     const opt = { margin: 10, filename: 'ASTRA_Report.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4' } };
     html2pdf().set(opt).from(document.getElementById('log-container')).save();
@@ -491,7 +509,10 @@ function openModal(index) {
     const entry = lastFullData[index];
     const details = entry.details || {};
     const risk = calculateRisk(details);
-    const cleanAsset = (details.target_symbol || 'N/A').replace(/:USDT/g, '');
+    let cleanAsset = (details.target_symbol || 'N/A').replace(/:USDT/g, '');
+    if (cleanAsset.includes('/') && cleanAsset.split('/').length > 2) {
+        cleanAsset = "ALL";
+    }
 
     document.getElementById('modal-title').innerText = `DEAL: ${cleanAsset}`;
     safeSetText('modal-asset', cleanAsset);
@@ -553,3 +574,67 @@ function closeBalanceModal() { document.getElementById('balance-modal').classLis
 // Init
 setInterval(updateDashboard, 3000);
 updateDashboard();
+
+async function updateTacticalHUD(entries) {
+    if (!entries || entries.length === 0) return;
+    const entry = entries[0];
+    const hud = document.getElementById('ai-hud-overlay');
+    if (!hud) return;
+
+    // 1. Symbol Sync (Auto-switch chart)
+    const rawSymbol = entry.target_symbol || "BTC/USDT";
+    const cleanSymbol = rawSymbol.split(':')[0].replace('/', '');
+    const tvSymbol = `OKX:${cleanSymbol}.P`;
+    
+    if (dashboardState.lastChartSymbol !== tvSymbol) {
+        if (typeof initTVWidget === 'function') {
+            console.log("🔄 HUD: Syncing chart to", tvSymbol);
+            initTVWidget(tvSymbol);
+            dashboardState.lastChartSymbol = tvSymbol;
+        }
+    }
+
+    // 2. HUD Visibility & Data
+    hud.classList.remove('opacity-0');
+    
+    let displaySymbol = rawSymbol.split(':')[0];
+    if (displaySymbol.includes('/') && displaySymbol.split('/').length > 2) {
+        displaySymbol = "ALL-SENTINEL";
+    }
+    safeSetText('hud-target-symbol', displaySymbol);
+    
+    // Parse reasoning for mission & keywords (CORTEX style)
+    const reasoning = entry.reasoning || "";
+    // Simplified regex that works with the new 50-word limit
+    const missionMatch = reasoning.split(':')[1]?.split('+')[0];
+    const keywordsMatch = reasoning.match(/\+ \[(.*?)\] \+/);
+
+    if (missionMatch) safeSetText('hud-mission', missionMatch.trim().toUpperCase());
+    
+    const kwContainer = document.getElementById('hud-keywords');
+    if (kwContainer && keywordsMatch) {
+        const keywords = keywordsMatch[1].split(',').map(k => k.trim());
+        kwContainer.innerHTML = keywords.map(k => `
+            <span class="px-1.5 py-0.5 border border-blue-500/50 bg-blue-500/10 text-[8px] text-blue-300 font-bold uppercase">${k}</span>
+        `).join('');
+    }
+
+    // 3. Dynamic TP/SL Markers
+    const tpMarker = document.getElementById('hud-tp-marker');
+    const slMarker = document.getElementById('hud-sl-marker');
+    
+    if (entry.action === "BUY") {
+        tpMarker.style.top = "20%";
+        slMarker.style.top = "80%";
+        tpMarker.style.opacity = "1";
+        slMarker.style.opacity = "1";
+    } else if (entry.action === "SELL") {
+        tpMarker.style.top = "80%";
+        slMarker.style.top = "20%";
+        tpMarker.style.opacity = "1";
+        slMarker.style.opacity = "1";
+    } else {
+        tpMarker.style.opacity = "0.2";
+        slMarker.style.opacity = "0.2";
+    }
+}

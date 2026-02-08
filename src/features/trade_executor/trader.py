@@ -3,6 +3,7 @@ import logging
 import asyncio
 from typing import List, Dict, Optional, Any, Union
 from src.app.config import config
+from src.shared.providers.db_provider import db_engine
 
 class Trader:
     """
@@ -93,10 +94,21 @@ class Trader:
 
     async def get_ticker(self, symbol: str) -> Optional[float]:
         try:
+            # 1. TRY WEBSOCKET FIRST (Idea 3 - Low Latency)
+            from src.shared.providers.price_observer import price_observer
+            ws_price = price_observer.get_price(symbol)
+            if ws_price:
+                return ws_price
+
+            # 2. FALLBACK TO REST
             ticker = await self.exchange.fetch_ticker(symbol)
-            return float(ticker['last'])
+            if 'last' in ticker and ticker['last'] is not None:
+                return float(ticker['last'])
+            else:
+                logging.warning(f"[{self.exchange_id}] Ticker for {symbol} returned no 'last' price.")
+                return None
         except Exception as e:
-            logging.error(f"[{self.exchange_id}] Ticker error: {e}")
+            logging.error(f"[{self.exchange_id}] Ticker error for {symbol}: {e}")
             return None
 
     async def get_history(self, limit=100):
@@ -178,6 +190,11 @@ class Trader:
                 return f"FAILED: Precision error for {symbol} (sz: {sz})"
             
             order_params = {'tdMode': 'cross'}
+            
+            # --- MONETIZATION: Broker Tag injection ---
+            if self.exchange_id == 'okx' and config.OKX_BROKER_ID:
+                order_params['tag'] = config.OKX_BROKER_ID
+            
             if self.exchange_id == 'okx' and self.pos_mode == 'long_short_mode':
                 order_params['posSide'] = 'long' if side == "BUY" else "short"
 
@@ -185,6 +202,10 @@ class Trader:
                 res = await self.exchange.create_market_buy_order(symbol, float(sz_str), params=order_params)
             else:
                 res = await self.exchange.create_market_sell_order(symbol, float(sz_str), params=order_params)
+            
+            # Sync Target State to DB
+            db_engine.update_active_trade(symbol, side, sz, current_price, leverage)
+            
             return f"SUCCESS: Order filled on {self.exchange_id.upper()}"
         except Exception as e:
             logging.error(f"Trader Error [{self.exchange_id}] on {symbol}: {e}")
@@ -205,10 +226,17 @@ class Trader:
             if self.exchange_id == 'okx':
                 inst_id = pos.get('info', {}).get('instId') or self.exchange.market(symbol)['id']
                 payload = {'instId': inst_id, 'mgnMode': pos.get('marginMode', 'cross')}
+                
+                # Monetization tag for Close orders too
+                if config.OKX_BROKER_ID:
+                    payload['tag'] = config.OKX_BROKER_ID
+                    
                 if pos.get('info', {}).get('posSide') in ['long', 'short']:
                     payload['posSide'] = pos['info']['posSide']
                 res = await self.exchange.private_post_trade_close_position(payload)
-                if str(res.get('code')) == '0': return await self._verify_closure(symbol)
+                if str(res.get('code')) == '0': 
+                    db_engine.close_active_trade(symbol)
+                    return await self._verify_closure(symbol)
             
             side = 'sell' if pos.get('side') == 'long' else 'buy'
             await self.exchange.create_market_order(symbol, side, float(pos['contracts']), {'reduceOnly': True})
@@ -232,7 +260,7 @@ class Trader:
         if self.exchange_id != 'okx': return "Skipped"
         try:
             symbol, side = pos['symbol'], pos['side']
-            # Normalize pct: if AI returns 12.5 (meaning 12.5%), convert to 0.125
+            # Normalize pct
             if tp_pct > 0.5: tp_pct = tp_pct / 100.0
             if sl_pct > 0.5: sl_pct = sl_pct / 100.0
 
@@ -244,20 +272,49 @@ class Trader:
 
             entry_price, contracts = float(raw_entry), abs(float(raw_contracts))
             
-            tp_price = entry_price * (1 + tp_pct) if side == 'long' else entry_price * (1 - tp_pct)
-            sl_price = entry_price * (1 - sl_pct) if side == 'long' else entry_price * (1 + sl_pct)
+            # Fetch Current Ticker for Trailing Check
+            last_price = await self.get_ticker(symbol)
+            if last_price is None: return "ERR: Ticker unavailable"
             
-            p = {'tdMode': 'cross', 'ordType': 'conditional'}
+            # Calculate Current PnL %
+            current_pnl_pct = (last_price - entry_price) / entry_price if side == 'long' else (entry_price - last_price) / entry_price
+            
+            # --- Trailing Stop-Loss Logic (v1.5.1) ---
+            final_sl_price = entry_price * (1 - sl_pct) if side == 'long' else entry_price * (1 + sl_pct)
+            
+            if config.TRAILING_STOP_ACTIVE and current_pnl_pct >= config.TRAILING_STOP_CALLBACK_PCT:
+                # Dynamic SL at distance from peak
+                ts_sl = last_price * (1 - config.TRAILING_STOP_DISTANCE_PCT) if side == 'long' else last_price * (1 + config.TRAILING_STOP_DISTANCE_PCT)
+                
+                # Ensure we never move SL back into loss if we are already in profit
+                if side == 'long':
+                    final_sl_price = max(ts_sl, final_sl_price, entry_price)
+                else:
+                    final_sl_price = min(ts_sl, final_sl_price, entry_price)
+                
+                logging.info(f"🛡️ Trailing SL Active for {symbol}: Moving SL to {final_sl_price:.2f} (Breakeven+) ")
+
+            tp_price = entry_price * (1 + tp_pct) if side == 'long' else entry_price * (1 - tp_pct)
+            
+            # Cancel existing conditional orders for this symbol to avoid duplicates
+            try:
+                await self.exchange.cancel_all_orders(symbol, params={'unfilledOnly': True, 'stop': True})
+            except: pass
+
+            p: Dict[str, Any] = {'tdMode': 'cross', 'ordType': 'conditional'}
+            if config.OKX_BROKER_ID: p['tag'] = config.OKX_BROKER_ID
             if self.pos_mode == 'long_short_mode': p['posSide'] = side
             else: p['reduceOnly'] = True
 
-            # TP
+            # TP Execution
             tp_px_str = self.exchange.price_to_precision(symbol, tp_price)
             await self.exchange.create_order(symbol, 'market', 'sell' if side == 'long' else 'buy', contracts, params={**p, 'tpTriggerPx': tp_px_str, 'tpOrdPx': '-1'})
-            # SL
-            sl_px_str = self.exchange.price_to_precision(symbol, sl_price)
+            
+            # SL Execution (Dynamic)
+            sl_px_str = self.exchange.price_to_precision(symbol, final_sl_price)
             await self.exchange.create_order(symbol, 'market', 'sell' if side == 'long' else 'buy', contracts, params={**p, 'slTriggerPx': sl_px_str, 'slOrdPx': '-1'})
-            return "SYNCED"
+            
+            return "SYNCED_TRAILING" if current_pnl_pct >= config.TRAILING_STOP_CALLBACK_PCT else "SYNCED"
         except Exception as e:
             logging.error(f"Sync SL/TP Error: {e}")
             return "ERR"

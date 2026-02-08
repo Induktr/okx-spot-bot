@@ -1,4 +1,5 @@
-from flask import Flask, render_template, jsonify, request, send_file
+from flask import Flask, render_template, jsonify, request, send_file, session, redirect, url_for, Response
+from functools import wraps
 import os
 import sys
 import logging
@@ -17,12 +18,46 @@ from src.features.trade_executor.trader import trader, traders, refresh_traders
 from src.app.config import config
 from src.shared.utils.portfolio_tracker import portfolio_tracker
 from src.shared.utils.system_health import system_health
+from src.shared.providers.db_provider import db_engine
+from src.shared.utils.card_generator import pnl_generator
 from werkzeug.exceptions import HTTPException
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET", "astra_ultra_secret_2026") # Required for sessions
+
+# Security Helper
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Skip auth if no password is set in .env (for local dev dev convenience)
+        # But for production sale, DASHBOARD_PASSWORD should always be set.
+        pass_required = os.environ.get("DASHBOARD_PASSWORD")
+        if pass_required and not session.get('authorized'):
+            if request.is_json:
+                return jsonify({"status": "error", "message": "Unauthorized"}), 401
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        password = request.form.get('password')
+        correct_password = os.environ.get("DASHBOARD_PASSWORD", "admin_astra_2026")
+        if password == correct_password:
+            session['authorized'] = True
+            return redirect(url_for('index'))
+        return render_template('login.html', error="Invalid Password")
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.pop('authorized', None)
+    return redirect(url_for('login'))
 
 # Cache for dashboard data with background sync
-data_cache = {
+from typing import Dict, Any
+data_cache: Dict[str, Any] = {
     "last_update": 0,
     "data": None,
     "current_latency": 0
@@ -34,6 +69,10 @@ async def background_data_sync():
     while True:
         try:
             start_sync = time.time()
+            
+            # Update PortfolioTracker mode based on active exchange sandbox status
+            is_demo = any(config.SANDBOX_MODES.values())
+            portfolio_tracker.set_demo_mode(is_demo)
             
             total_balance = 0
             all_positions = []
@@ -138,6 +177,7 @@ def favicon():
     return "", 204 # No content, stops 404 noise
 
 @app.route('/api/bot_status', methods=['GET'])
+@login_required
 def get_bot_status():
     return jsonify({
         "active": config.BOT_ACTIVE,
@@ -148,6 +188,7 @@ def get_bot_status():
     })
 
 @app.route('/api/toggle_bot', methods=['POST'])
+@login_required
 def toggle_bot():
     config.BOT_ACTIVE = not config.BOT_ACTIVE
     config.save_settings() # Persist state to JSON
@@ -168,6 +209,7 @@ def toggle_bot():
     })
 
 @app.route('/api/update_schedule', methods=['POST'])
+@login_required
 def update_schedule():
     data = request.json
     days = data.get('trading_days', config.TRADING_DAYS)
@@ -197,10 +239,12 @@ def update_schedule():
     })
 
 @app.route('/')
+@login_required
 def index():
     return render_template('index.html')
 
 @app.route('/api/data')
+@login_required
 def get_data():
     # If cache is empty, do a quick foreground fetch or return placeholder
     if not data_cache["data"]:
@@ -229,11 +273,13 @@ def get_data():
     return jsonify(response)
 
 @app.route('/api/portfolio/history')
+@login_required
 def get_portfolio_history():
     return jsonify(portfolio_tracker.get_history())
 
 
 @app.route('/api/reports/download/md')
+@login_required
 def download_md():
     filename = report_parser.get_latest_report_file()
     if not filename:
@@ -244,6 +290,7 @@ def download_md():
     return send_file(filepath, as_attachment=True, download_name=filename)
 
 @app.route('/api/reports/delete_all', methods=['POST'])
+@login_required
 def delete_all_reports():
     try:
         count = 0
@@ -260,6 +307,7 @@ def delete_all_reports():
 
 
 @app.route('/api/settings/keys', methods=['POST'])
+@login_required
 def update_keys():
     data = request.json
     exchange = data.get('exchange', '').lower()
@@ -270,6 +318,7 @@ def update_keys():
 
     if is_demo is not None and exchange in config.SANDBOX_MODES:
         config.SANDBOX_MODES[exchange] = is_demo
+        portfolio_tracker.set_demo_mode(is_demo)
     
     gemini_key = data.get('gemini_key', '')
     if gemini_key: config.GEMINI_API_KEY = gemini_key
@@ -301,6 +350,7 @@ def update_keys():
     return jsonify({"status": "success", "message": f"Credentials updated for {exchange.upper()}"})
 
 @app.route('/api/settings/sandbox', methods=['POST'])
+@login_required
 def toggle_sandbox():
     data = request.json
     exchange = data.get('exchange')
@@ -308,12 +358,14 @@ def toggle_sandbox():
     
     if exchange in config.SANDBOX_MODES:
         config.SANDBOX_MODES[exchange] = is_demo
+        portfolio_tracker.set_demo_mode(is_demo)
         config.save_settings()
         refresh_traders()
         return jsonify({"status": "success", "exchange": exchange, "is_demo": is_demo})
     return jsonify({"status": "error", "message": "Invalid exchange"}), 400
 
 @app.route('/api/settings/exchange', methods=['POST'])
+@login_required
 def update_exchange():
     data = request.json
     new_exchange = data.get('exchange', 'okx').lower()
@@ -326,6 +378,7 @@ def update_exchange():
     return jsonify({"status": "success", "active": config.ACTIVE_EXCHANGES})
 
 @app.route('/api/symbols/add', methods=['POST'])
+@login_required
 def add_symbol():
     data = request.json
     new_symbol = data.get('symbol', '').strip().upper()
@@ -352,6 +405,7 @@ def add_symbol():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/portfolio/reset', methods=['POST'])
+@login_required
 def reset_portfolio():
     try:
         data = request.json
@@ -375,6 +429,7 @@ def reset_portfolio():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/symbols/delete', methods=['POST'])
+@login_required
 def delete_symbol():
     data = request.json
     target = data.get('symbol')
@@ -383,6 +438,58 @@ def delete_symbol():
         config.save_symbols()
         return jsonify({"status": "success", "symbols": config.SYMBOLS})
     return jsonify({"status": "error", "message": "Symbol not found"}), 404
+
+@app.route('/api/generate_pnl_card', methods=['GET'])
+@login_required
+def generate_pnl_card():
+    """Generates a Quantum PNL Card for a specific symbol."""
+    symbol = request.args.get('symbol')
+    if not symbol:
+        return jsonify({"status": "error", "message": "No symbol provided"}), 400
+
+    try:
+        # 1. Get current position details from cache or direct fetch
+        p = None
+        if "data" in data_cache and "positions" in data_cache["data"]:
+            p = next((pos for pos in data_cache["data"]["positions"] if pos['symbol'] == symbol), None)
+        
+        if not p:
+            return jsonify({"status": "error", "message": "Active position not found"}), 404
+
+        # 2. Extract stats
+        # Percentage format varies (0.05 or 5.0)
+        pnl_val = float(p.get('percentage', 0))
+        # Logic to match dashboard scaling
+        if abs(pnl_val) < 0.5 and pnl_val != 0: pnl_val *= 100
+
+        # 3. Pull Quantum Trace from DB
+        trace = db_engine.get_active_trades()
+        t_data = trace.get(symbol, {})
+        
+        card_data = {
+            "symbol": symbol,
+            "side": p.get('side', 'LONG'),
+            "leverage": int(p.get('leverage', 1)),
+            "pnl_pct": pnl_val,
+            "entry_price": float(p.get('entryPrice') or 0),
+            "current_price": float(p.get('markPrice') or p.get('entryPrice') or 0),
+            "hurst": float(t_data.get('hurst', 0.5)),
+            "fisher": float(t_data.get('fisher', 0.0))
+        }
+
+        # 4. Generate
+        buf = pnl_generator.generate_trade_card(card_data)
+        if buf:
+            return send_file(
+                buf,
+                mimetype='image/png',
+                as_attachment=True,
+                download_name=f"ASTRA_PNL_{symbol.replace('/', '_')}.png"
+            )
+        return jsonify({"status": "error", "message": "Failed to generate image bytes"}), 500
+    except Exception as e:
+        logging.error(f"PNL CARD API ERROR: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 def run_dashboard():

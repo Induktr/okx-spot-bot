@@ -8,14 +8,19 @@ class SystemHealth:
     Module 6: SystemHealth
     Responsibility: Monitoring the 'vitals' of the bot including AI performance, API latency, and uptime.
     """
+    _shared_state = {
+        "start_time": datetime.datetime.now(),
+        "cycle_latencies": [],
+        "ai_success_count": 0,
+        "ai_total_calls": 0,
+        "api_errors": 0,
+        "last_ai_confidence": 0,
+        "rate_limit_hits": 0
+    }
+
     def __init__(self):
-        self.start_time = datetime.datetime.now()
-        self.cycle_latencies = []
-        self.ai_success_count = 0
-        self.ai_total_calls = 0
-        self.api_errors = 0
-        self.last_ai_confidence = 0
-        self.rate_limit_hits = 0
+        # Point instance attributes to shared class state
+        self.__dict__ = self._shared_state
 
     def record_cycle(self, latency_ms: float):
         self.cycle_latencies.append(latency_ms)

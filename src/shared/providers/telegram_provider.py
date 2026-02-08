@@ -5,7 +5,7 @@ from src.app.config import config
 class TelegramProvider:
     """
     Feature 5: Telegram Command Center & Signal Hub.
-    Now powered by pyTelegramBotAPI for robust command handling.
+    Powered by pyTelegramBotAPI for robust command handling.
     """
     def __init__(self):
         self.token = config.TELEGRAM_TOKEN
@@ -14,17 +14,37 @@ class TelegramProvider:
         if self.token:
             try:
                 self.bot = telebot.TeleBot(self.token, parse_mode='Markdown')
+                logging.info("🚀 Telegram Bot Initialized.")
             except Exception as e:
                 logging.error(f"Failed to initialize Telegram Bot: {e}")
 
-    def send_message(self, text, parse_mode="Markdown"):
-        if not self.bot or not self.chat_id or not config.TG_SIGNALS_ACTIVE:
+    def send_message(self, text, parse_mode="Markdown", retries=3, chat_id=None, message_thread_id=None):
+        target = str(chat_id or self.chat_id)
+        
+        if not self.bot or not target or not config.TG_SIGNALS_ACTIVE:
             return
             
+        import time
+        for attempt in range(retries):
+            try:
+                return self.bot.send_message(target, text, parse_mode=parse_mode, timeout=20, message_thread_id=message_thread_id)
+            except Exception as e:
+                if attempt < retries - 1:
+                    wait_time = (attempt + 1) * 2
+                    logging.warning(f"Telegram retry {attempt + 1}/{retries} in {wait_time}s due to error: {e}")
+                    time.sleep(wait_time)
+                else:
+                    logging.error(f"Telegram Final Error: {e}")
+                    return None
+
+    def send_photo(self, photo, caption="", chat_id=None, message_thread_id=None):
+        target = str(chat_id or self.chat_id)
+        
+        if not self.bot or not target: return
         try:
-            return self.bot.send_message(self.chat_id, text, parse_mode=parse_mode)
+            return self.bot.send_photo(target, photo, caption=caption, parse_mode='Markdown', message_thread_id=message_thread_id)
         except Exception as e:
-            logging.error(f"Telegram Send Error: {e}")
+            logging.error(f"Telegram Photo Error: {e}")
             return None
 
     def send_emergency_alert(self, event_type, details):
@@ -70,6 +90,34 @@ class TelegramProvider:
             f"━━━━━━━━━━━━━━━━━━\n"
             f"🤖 _A.S.T.R.A. v1.5 Autonomous Core_"
         )
+        
+        # --- PNL Card Generation ---
+        if any("SUCCESS" in r.upper() for r in results):
+            from src.shared.utils.card_generator import pnl_generator
+            from src.shared.providers.db_provider import db_engine
+            
+            trace = db_engine.get_active_trades()
+            t_data = trace.get(symbol, {})
+            
+            card_data = {
+                "symbol": symbol,
+                "side": side,
+                "leverage": t_data.get('leverage', 1),
+                "pnl_pct": roi,
+                "entry_price": t_data.get('entry_price', 0),
+                "current_price": t_data.get('entry_price', 0) * (1 + roi/100),
+                "hurst": t_data.get('hurst', 0.5),
+                "fisher": t_data.get('fisher', 0.0)
+            }
+            
+            card_buf = pnl_generator.generate_trade_card(card_data)
+            if card_buf:
+                caption = (
+                    f"🚀 *Verified A.S.T.R.A. Result*\n"
+                    f"Asset: `{symbol}` | PNL: `{roi:+.2f}%`"
+                )
+                self.send_photo(card_buf, caption=caption)
+
         return self.send_message(msg)
 
     def setup_commands(self, traders_map, portfolio_tracker):

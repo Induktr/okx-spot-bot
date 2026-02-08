@@ -44,6 +44,9 @@ astra_report_*.pdf
 models/
 artifacts/
 
+# Large Media & Archives
+profile.tar.gz
+
 # Broad Patterns (Safety Net)
 # Only allow specific necessary JSONs if any (using !filename.json)
 # But for now, excluding all data-like files is safer for a bot.

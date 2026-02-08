@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  astra:
+    build: .
+    container_name: astra_v15_engine
+    restart: always
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./src/shared/data:/app/src/shared/data
+      - ./logs:/app/logs
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-admin_astra_2026}

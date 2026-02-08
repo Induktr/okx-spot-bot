@@ -81,9 +81,8 @@ async def main_async():
                 if consecutive_ai_failures >= FAILURE_THRESHOLD:
                     logging.critical("🧠 AI Brain is unresponsive. Switching to Defensive Mode...")
                     # Possible emergency logic here
-            elif status == "ERROR":
-                logging.error("❌ Cycle failed due to internal error. Cooling down...")
-                next_run_time = datetime.datetime.now() + datetime.timedelta(minutes=5)
+                logging.error("❌ Cycle failed due to internal error. Cooling down (15m)...")
+                next_run_time = datetime.datetime.now() + datetime.timedelta(minutes=15)
             else:
                 consecutive_ai_failures = 0
                 next_run_time = datetime.datetime.now() + datetime.timedelta(minutes=config.CYCLE_INTERVAL_MINUTES)
