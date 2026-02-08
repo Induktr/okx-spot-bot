@@ -17,6 +17,8 @@ aiohttp
 instagrapi
 pycryptodomex
 openai
+anthropic
+DrissionPage
 tiktok-uploader
 playwright
 yt_dlp
